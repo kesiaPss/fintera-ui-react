@@ -6,7 +6,7 @@ import { reportsApi } from "@/shared/api/reports";
 
 const REPORT_TYPES = [
     {
-        id: "commissions_csv",
+        id: "commissions_export",
         titleKey: "reports.commissionsCsv",
         type: "report",
         icon: (
@@ -20,7 +20,7 @@ const REPORT_TYPES = [
         bgColor: "bg-brand-soft",
     },
     {
-        id: "total_revenue_csv",
+        id: "income_flow_export",
         titleKey: "reports.revenueFlowCsv",
         type: "report",
         icon: (
@@ -33,7 +33,7 @@ const REPORT_TYPES = [
         bgColor: "bg-info-soft",
     },
     {
-        id: "overdue_payments_csv",
+        id: "overdue_export",
         titleKey: "reports.overduePaymentsCsv",
         type: "report",
         icon: (
@@ -78,6 +78,21 @@ const EXPORT_FORMATS = [
         ),
         color: "text-brand-strong",
         bgColor: "bg-brand-soft",
+    },
+    {
+        id: "pdf",
+        label: "PDF",
+        type: "base",
+        icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="9" y1="13" x2="15" y2="13" />
+                <line x1="9" y1="17" x2="15" y2="17" />
+            </svg>
+        ),
+        color: "text-danger",
+        bgColor: "bg-danger-soft",
     }
 ];
 
@@ -98,16 +113,19 @@ const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, onExpo
     }, []);
 
     const handleReportDownload = async (reportId) => {
-        if (!startDate || !endDate) {
+        const requiresDateRange = reportId !== "overdue_export";
+
+        if (requiresDateRange && (!startDate || !endDate)) {
             showToast(t('reports.selectBothDates'), "error");
             return;
         }
 
         try {
-            const blob = await reportsApi.downloadReport(reportId, {
-                start_date: startDate,
-                end_date: endDate,
-            });
+            const params = requiresDateRange
+                ? { start_date: startDate, end_date: endDate }
+                : {};
+
+            const blob = await reportsApi.downloadReport(reportId, params, "csv");
 
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -168,7 +186,7 @@ const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, onExpo
                             <div className="mb-2 px-2 text-micro font-bold uppercase tracking-wide text-ink-3">
                                 {t("reports.dataExport") || "Data Export"}
                             </div>
-                            <div className="mb-3 grid grid-cols-2 gap-2">
+                            <div className="mb-3 grid grid-cols-3 gap-2">
                                 {EXPORT_FORMATS.map((format) => (
                                     <button
                                         key={format.id}
