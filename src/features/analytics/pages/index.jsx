@@ -561,6 +561,7 @@ const Analytics = () => {
                             <ExportDropdown
                                 startDate={dateRangeForExport.startDate}
                                 endDate={dateRangeForExport.endDate}
+                                projectId={filterValue !== "All" ? filterValue : undefined}
                                 onExportBase={handleExport}
                             />
                         </div>

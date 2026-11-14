@@ -7,10 +7,13 @@ const periodQuery = (startDate, endDate) =>
 export const commissionsApi = {
   list: (startDate, endDate) =>
     apiClient.get(`/api/v1/reports/commissions${periodQuery(startDate, endDate)}`),
-  downloadCsv: (startDate, endDate) =>
-    apiClient.get(`/api/v1/reports/commissions_export${periodQuery(startDate, endDate)}&format=csv`, {
-      responseType: "blob",
-    }),
+  download: (startDate, endDate, format = "csv") =>
+    apiClient.get(
+      `/api/v1/reports/commissions_export${periodQuery(startDate, endDate)}&format=${format}`,
+      {
+        responseType: "blob",
+      }
+    ),
   markPaid: (contractGuid) =>
     apiClient.patch(`/api/v1/contracts/${contractGuid}/commission/pay`),
   applyCredit: (creditId) =>

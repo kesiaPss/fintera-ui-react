@@ -71,6 +71,12 @@ const translations = {
     "Revisa tu conexión e intenta de nuevo.",
   "common.copiedToClipboard": "Copiado al portapapeles",
   "common.retry": "Reintentar",
+  "common.downloadSuccess": "Descarga exitosa",
+  "common.downloadError": "Error al descargar el archivo",
+  "reports.commissions": "Comisiones",
+  "reports.downloadOptionsFor": "Formatos de descarga de {report}",
+  "reports.downloadAs": "Descargar {report} en {format}",
+  "commissions.downloadReport": "Descargar reporte",
   "payments.statusOptions.approved": "Aprobado",
   "payments.statusOptions.pending": "Pendiente",
 };
@@ -94,7 +100,7 @@ vi.mock("../api", () => ({
   dashboardApi: {
     getSellerStats: vi.fn(),
     getCommissions: vi.fn(),
-    downloadCommissionsCsv: vi.fn(),
+    downloadCommissions: vi.fn(),
   },
 }));
 
@@ -360,6 +366,18 @@ describe("SellerDashboard", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(await screen.findByText("Cliente del modal")).toBeInTheDocument();
     expect(dashboardApi.getCommissions).toHaveBeenCalled();
+    expect(
+      screen.getByRole("group", { name: "Formatos de descarga de Comisiones" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Descargar Comisiones en CSV" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Descargar Comisiones en Excel" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Descargar Comisiones en PDF" })
+    ).toBeInTheDocument();
   });
 
   it("uses a stacking, responsive layout for the KPIs and detail panels", async () => {

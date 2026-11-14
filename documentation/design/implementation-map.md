@@ -656,7 +656,7 @@ were added to the API in the `redesign/api-commission-payout` branch.
 | Area | Status | Contract |
 | --- | --- | --- |
 | Dashboard | Implemented | no `/dashboard/summary`; client composition of `payments/stats` + `contracts/stats` |
-| Commissions | Existing | `GET /reports/commissions`, `GET /reports/commissions_csv` (admin sees all; seller filtered by creator) |
+| Commissions | Existing | `GET /reports/commissions`; downloads use `GET /reports/commissions_export?format=xlsx\|csv\|pdf` (admin sees all; seller filtered by creator) |
 | Commission rates | Existing | `commission_rate_direct` / `_bank` / `_cash` on Project, editable in project create/edit |
 | Commission amount | Existing | `commission_amount` on Contract, computed at creation and frozen when paid |
 | Commission payout | **Added** | `PATCH /contracts/:guid/commission/pay`; `commission_paid_at` + `commission_paid_by`; migration `000029`; `COMMISSION_PAID` audit |

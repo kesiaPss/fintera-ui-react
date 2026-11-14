@@ -20,12 +20,25 @@ monthly performance, and seller performance for the selected filters.
 ### Requirement: Filtering and export
 
 The analytics page SHALL support project and date filters and SHALL let the
-user export the current analytics data.
+user download each financial report (operations, commissions, revenue flow and
+overdue payments) in CSV, Excel (XLSX) and PDF.
 
 #### Scenario: Export data
 
-- **WHEN** the user chooses an export option
-- **THEN** the current analytics data is downloaded
+- **WHEN** the user chooses a report and a format
+- **THEN** that report is downloaded in the selected format
+
+#### Scenario: Export formats are visible
+
+- **WHEN** the export menu is open
+- **THEN** every report shows the three available formats (CSV, Excel and PDF)
+  as explicit download actions
+
+#### Scenario: Overdue snapshot
+
+- **WHEN** the user downloads the overdue payments report
+- **THEN** no date range is required because the report is a point-in-time
+  snapshot
 
 ### Requirement: Comparison deltas are guarded
 

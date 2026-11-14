@@ -16,10 +16,12 @@ import {
   Dialog,
   EmptyState,
   ErrorState,
+  ExportFormatButtons,
   Select,
   Skeleton,
   Table,
 } from "@/shared/ui";
+import { buildExportFilename } from "@/shared/export/formats";
 
 const money = (value) =>
   `L ${Number(value || 0).toLocaleString("es-HN", { maximumFractionDigits: 0 })}`;
@@ -110,7 +112,7 @@ function Commissions() {
   const [seller, setSeller] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [exporting, setExporting] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
 
@@ -239,20 +241,23 @@ function Commissions() {
     ? ((totals.commission / totals.amount) * 100).toFixed(1)
     : "0.0";
 
-  const handleExport = async () => {
-    setExporting(true);
+  const handleExport = async (format = "csv") => {
+    setExportingFormat(format);
     try {
-      const blob = await commissionsApi.downloadCsv(startDate, endDate);
+      const blob = await commissionsApi.download(startDate, endDate, format);
       const url = URL.createObjectURL(
         blob instanceof Blob ? blob : new Blob([blob])
       );
       const link = document.createElement("a");
       link.href = url;
-      link.download = `comisiones-${startDate}.csv`;
+      link.download = buildExportFilename(`comisiones-${startDate}`, format);
       link.click();
       URL.revokeObjectURL(url);
+      showToast(t("common.downloadSuccess"), "success");
+    } catch {
+      showToast(t("common.downloadError"), "error");
     } finally {
-      setExporting(false);
+      setExportingFormat(null);
     }
   };
 
@@ -383,15 +388,21 @@ function Commissions() {
               })}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-label font-semibold text-ink-3">
+              {t("common.export")}
+            </span>
+            <ExportFormatButtons
+              size="md"
+              onSelect={handleExport}
+              busyFormat={exportingFormat}
+              reportLabel={t("reports.commissions")}
+            />
             {isAdmin && (
               <Button variant="secondary" onClick={() => setRulesOpen(true)}>
                 {t("commissions.configureRates")}
               </Button>
             )}
-            <Button variant="secondary" onClick={handleExport} loading={exporting}>
-              {t("common.export")}
-            </Button>
           </div>
         </header>
 
