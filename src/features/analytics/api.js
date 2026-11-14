@@ -19,6 +19,6 @@ export const analyticsApi = {
     },
     exportReport: (params) => {
         const query = new URLSearchParams(params).toString();
-        return apiClient.get(`/api/v1/analytics/export?${query}`, { responseType: 'blob' });
+        return apiClient.get(`/api/v1/reports/operations_export?${query}`, { responseType: 'blob' });
     }
 };
