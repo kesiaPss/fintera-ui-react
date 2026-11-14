@@ -33,7 +33,7 @@ vi.mock("../api", () => ({
     list: vi.fn(),
     markPaid: vi.fn(),
     applyCredit: vi.fn(),
-    downloadCsv: vi.fn(),
+    download: vi.fn(),
   },
 }));
 
@@ -98,7 +98,7 @@ beforeEach(() => {
   commissionsApi.list.mockReset();
   commissionsApi.markPaid.mockReset();
   commissionsApi.applyCredit.mockReset();
-  commissionsApi.downloadCsv.mockReset();
+  commissionsApi.download.mockReset();
   confirmDialog.mockReset();
   showToast.mockReset();
 
@@ -141,5 +141,55 @@ describe("Admin commissions credits", () => {
     );
     await waitFor(() => expect(commissionsApi.list).toHaveBeenCalledTimes(2));
     expect(showToast).toHaveBeenCalledWith("Commission credit applied.");
+  });
+});
+
+describe("Commissions export formats", () => {
+  const originalCreateObjectURL = window.URL.createObjectURL;
+  const originalRevokeObjectURL = window.URL.revokeObjectURL;
+
+  beforeEach(() => {
+    window.URL.createObjectURL = vi.fn(() => "blob:commissions");
+    window.URL.revokeObjectURL = vi.fn();
+  });
+
+  afterEach(() => {
+    window.URL.createObjectURL = originalCreateObjectURL;
+    window.URL.revokeObjectURL = originalRevokeObjectURL;
+    vi.restoreAllMocks();
+  });
+
+  it("offers the three formats and downloads the selected one", async () => {
+    commissionsApi.download.mockResolvedValue(new Blob(["report"]));
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    render(<Commissions />);
+    await screen.findAllByText("Ana Vendedora");
+
+    expect(
+      screen.getByRole("button", { name: "Download Commissions as CSV" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download Commissions as Excel" })
+    ).toBeInTheDocument();
+    const pdfButton = screen.getByRole("button", {
+      name: "Download Commissions as PDF",
+    });
+    expect(pdfButton).toBeInTheDocument();
+
+    fireEvent.click(pdfButton);
+
+    await waitFor(() =>
+      expect(commissionsApi.download).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        "pdf"
+      )
+    );
+    expect(showToast).toHaveBeenCalledWith("Download successful", "success");
+
+    clickSpy.mockRestore();
   });
 });

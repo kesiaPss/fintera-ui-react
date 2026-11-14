@@ -3,12 +3,32 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "../../../contexts/LocaleContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { reportsApi } from "@/shared/api/reports";
+import { buildExportFilename } from "@/shared/export/formats";
+import ExportFormatButtons from "@/shared/ui/ExportFormatButtons";
+
+const OPERATIONS_REPORT = {
+    id: "operations_export",
+    titleKey: "reports.operationsReport",
+    descriptionKey: "reports.operationsHint",
+    requiresDates: true,
+    supportsProject: true,
+    icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l4-6 4 3 4-7" />
+        </svg>
+    ),
+    color: "text-brand-strong",
+    bgColor: "bg-brand-soft",
+};
 
 const REPORT_TYPES = [
     {
         id: "commissions_export",
-        titleKey: "reports.commissionsCsv",
-        type: "report",
+        titleKey: "reports.commissions",
+        descriptionKey: "reports.commissionsHint",
+        requiresDates: true,
+        supportsProject: false,
         icon: (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -21,8 +41,10 @@ const REPORT_TYPES = [
     },
     {
         id: "income_flow_export",
-        titleKey: "reports.revenueFlowCsv",
-        type: "report",
+        titleKey: "reports.revenueFlow",
+        descriptionKey: "reports.revenueFlowHint",
+        requiresDates: true,
+        supportsProject: true,
         icon: (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="1" x2="12" y2="23" />
@@ -34,8 +56,10 @@ const REPORT_TYPES = [
     },
     {
         id: "overdue_export",
-        titleKey: "reports.overduePaymentsCsv",
-        type: "report",
+        titleKey: "reports.overduePayments",
+        descriptionKey: "reports.overdueSnapshot",
+        requiresDates: false,
+        supportsProject: false,
         icon: (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
@@ -48,58 +72,32 @@ const REPORT_TYPES = [
     }
 ];
 
-const EXPORT_FORMATS = [
-    {
-        id: "csv",
-        label: "CSV",
-        type: "base",
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="18" x2="12" y2="12" />
-                <polyline points="9 15 12 18 15 15" />
-            </svg>
-        ),
-        color: "text-warning",
-        bgColor: "bg-warning-soft",
-    },
-    {
-        id: "xlsx",
-        label: "Excel",
-        type: "base",
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <path d="M8 13h2l2 2 2-2h2" />
-                <path d="M8 17h2l2-2 2 2h2" />
-            </svg>
-        ),
-        color: "text-brand-strong",
-        bgColor: "bg-brand-soft",
-    },
-    {
-        id: "pdf",
-        label: "PDF",
-        type: "base",
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="9" y1="13" x2="15" y2="13" />
-                <line x1="9" y1="17" x2="15" y2="17" />
-            </svg>
-        ),
-        color: "text-danger",
-        bgColor: "bg-danger-soft",
-    }
-];
+const ReportCard = ({ report, title, description, busyFormat, disabled, onSelect }) => (
+    <div className="rounded-control border border-line bg-surface p-2.5">
+        <div className="flex items-start gap-2.5">
+            <div className={`rounded-control p-2 ${report.bgColor} ${report.color}`}>
+                {report.icon}
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-label font-semibold text-ink-2">{title}</p>
+                <p className="text-micro leading-snug text-ink-3">{description}</p>
+            </div>
+        </div>
+        <ExportFormatButtons
+            className="mt-2"
+            reportLabel={title}
+            busyFormat={busyFormat}
+            disabled={disabled}
+            onSelect={onSelect}
+        />
+    </div>
+);
 
-const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, onExportBase }) {
+const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, projectId, onExportBase }) {
     const { t } = useLocale();
     const { showToast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
+    const [busy, setBusy] = useState(null);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -112,33 +110,58 @@ const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, onExpo
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleReportDownload = async (reportId) => {
-        const requiresDateRange = reportId !== "overdue_export";
+    const saveBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    };
 
-        if (requiresDateRange && (!startDate || !endDate)) {
-            showToast(t('reports.selectBothDates'), "error");
+    const handleBaseDownload = async (format) => {
+        setBusy({ reportId: OPERATIONS_REPORT.id, format });
+        try {
+            await onExportBase?.(format);
+            setIsOpen(false);
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const handleReportDownload = async (report, format) => {
+        if (report.requiresDates && (!startDate || !endDate)) {
+            showToast(t("reports.selectBothDates"), "error");
             return;
         }
 
+        setBusy({ reportId: report.id, format });
         try {
-            const params = requiresDateRange
-                ? { start_date: startDate, end_date: endDate }
-                : {};
+            const params = {};
+            if (report.requiresDates) {
+                params.start_date = startDate;
+                params.end_date = endDate;
+            }
+            if (report.supportsProject && projectId) {
+                params.project_id = projectId;
+            }
 
-            const blob = await reportsApi.downloadReport(reportId, params, "csv");
+            const blob = await reportsApi.downloadReport(report.id, params, format);
+            const today = new Date().toISOString().split("T")[0];
 
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `${reportId}-${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            saveBlob(blob, buildExportFilename(`${report.id}-${today}`, format));
             showToast(t("common.downloadSuccess"), "success");
             setIsOpen(false);
         } catch {
-            showToast(t('reports.downloadError'), "error");
+            showToast(t("reports.downloadError"), "error");
+        } finally {
+            setBusy(null);
         }
     };
+
+    const isBusy = (reportId) => busy !== null && busy.reportId === reportId;
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -180,54 +203,40 @@ const ExportDropdown = memo(function ExportDropdown({ startDate, endDate, onExpo
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 z-[100] mt-2 w-72 overflow-hidden rounded-card border border-line bg-surface shadow-pop"
+                        className="absolute right-0 z-[100] mt-2 w-[22rem] overflow-hidden rounded-card border border-line bg-surface shadow-pop"
                     >
-                        <div className="p-3">
+                        <div className="max-h-[min(70vh,34rem)] overflow-y-auto p-3">
                             <div className="mb-2 px-2 text-micro font-bold uppercase tracking-wide text-ink-3">
                                 {t("reports.dataExport") || "Data Export"}
                             </div>
-                            <div className="mb-3 grid grid-cols-3 gap-2">
-                                {EXPORT_FORMATS.map((format) => (
-                                    <button
-                                        key={format.id}
-                                        onClick={() => {
-                                            onExportBase(format.id);
-                                            setIsOpen(false);
-                                        }}
-                                        className="group flex flex-col items-center justify-center rounded-control border border-transparent p-2.5 transition-colors hover:border-line hover:bg-surface-2"
-                                    >
-                                        <div className={`mb-1.5 rounded-control p-2 ${format.bgColor} ${format.color}`}>
-                                            {format.icon}
-                                        </div>
-                                        <span className="text-label font-semibold text-ink-2">{format.label}</span>
-                                    </button>
-                                ))}
-                            </div>
+                            <ReportCard
+                                report={OPERATIONS_REPORT}
+                                title={t(OPERATIONS_REPORT.titleKey)}
+                                description={t(OPERATIONS_REPORT.descriptionKey)}
+                                busyFormat={isBusy(OPERATIONS_REPORT.id) ? busy.format : null}
+                                disabled={busy !== null && !isBusy(OPERATIONS_REPORT.id)}
+                                onSelect={handleBaseDownload}
+                            />
 
-                            <div className="my-2 h-px bg-line" />
+                            <div className="my-3 h-px bg-line" />
 
-                            <div className="my-2 px-2 text-micro font-bold uppercase tracking-wide text-ink-3">
+                            <div className="mb-1 px-2 text-micro font-bold uppercase tracking-wide text-ink-3">
                                 {t("reports.financialReports") || "Financial Reports"}
                             </div>
-                            <div className="space-y-1">
+                            <p className="mb-2 px-2 text-micro leading-snug text-ink-3">
+                                {t("reports.availableInAllFormats")}
+                            </p>
+                            <div className="space-y-2">
                                 {REPORT_TYPES.map((report) => (
-                                    <button
+                                    <ReportCard
                                         key={report.id}
-                                        onClick={() => handleReportDownload(report.id)}
-                                        className="group flex w-full items-center gap-2.5 rounded-control border border-transparent p-2 text-left transition-colors hover:border-line hover:bg-surface-2"
-                                    >
-                                        <div className={`rounded-control p-2 ${report.bgColor} ${report.color}`}>
-                                            {report.icon}
-                                        </div>
-                                        <div>
-                                            <span className="block text-label font-semibold text-ink-2">
-                                                {t(report.titleKey)}
-                                            </span>
-                                            <span className="block text-micro text-ink-3">
-                                                {t("common.downloadCsv") || "Download .csv"}
-                                            </span>
-                                        </div>
-                                    </button>
+                                        report={report}
+                                        title={t(report.titleKey)}
+                                        description={t(report.descriptionKey)}
+                                        busyFormat={isBusy(report.id) ? busy.format : null}
+                                        disabled={busy !== null && !isBusy(report.id)}
+                                        onSelect={(format) => handleReportDownload(report, format)}
+                                    />
                                 ))}
                             </div>
                         </div>

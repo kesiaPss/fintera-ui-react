@@ -26,3 +26,4 @@ export { default as SegmentedControl } from "./SegmentedControl";
 export { default as Menu } from "./Menu";
 export { default as FileUpload } from "./FileUpload";
 export { default as Stepper } from "./Stepper";
+export { default as ExportFormatButtons } from "./ExportFormatButtons";

@@ -1,21 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocale } from "../../../contexts/LocaleContext";
+import { useToast } from "../../../contexts/ToastContext";
 import { formatCurrency } from "../../../shared/utils/formatters";
 import {
-  Button,
   Dialog,
   EmptyState,
   ErrorState,
+  ExportFormatButtons,
   Skeleton,
 } from "../../../shared/ui";
+import { buildExportFilename } from "../../../shared/export/formats";
 
 import { dashboardApi } from "../api";
 
 const CommissionsModal = ({ isActive, handleClose, initialDate }) => {
   const { t } = useLocale();
+  const { showToast } = useToast();
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [downloadingFormat, setDownloadingFormat] = useState(null);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalCommissions: 0,
@@ -68,7 +72,8 @@ const CommissionsModal = ({ isActive, handleClose, initialDate }) => {
     }
   }, [isActive, selectedDate, fetchCommissions]);
 
-  const handleDownloadCSV = async () => {
+  const handleDownload = async (format = "csv") => {
+    setDownloadingFormat(format);
     try {
       const year = selectedDate.getFullYear();
       const monthNumber = selectedDate.getMonth() + 1;
@@ -77,17 +82,25 @@ const CommissionsModal = ({ isActive, handleClose, initialDate }) => {
       const lastDay = new Date(year, selectedDate.getMonth() + 1, 0).getDate();
       const endDate = `${year}-${monthStr}-${lastDay}`;
 
-      const blob = await dashboardApi.downloadCommissionsCsv(startDate, endDate);
+      const blob = await dashboardApi.downloadCommissions(
+        startDate,
+        endDate,
+        format
+      );
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `commissions-${startDate}.csv`;
+      a.download = buildExportFilename(`commissions-${startDate}`, format);
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
+      showToast(t("common.downloadSuccess"), "success");
     } catch (error) {
-      console.error("Failed to download CSV", error);
+      console.error("Failed to download commissions", error);
+      showToast(t("common.downloadError"), "error");
+    } finally {
+      setDownloadingFormat(null);
     }
   };
 
@@ -326,27 +339,17 @@ const CommissionsModal = ({ isActive, handleClose, initialDate }) => {
           )}
         </div>
 
-        <div className="flex justify-end border-t border-line bg-surface p-6">
-          <Button
-            onClick={handleDownloadCSV}
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line bg-surface p-6">
+          <span className="text-label font-semibold text-ink-3">
+            {t("commissions.downloadReport")}
+          </span>
+          <ExportFormatButtons
+            size="md"
+            onSelect={handleDownload}
+            busyFormat={downloadingFormat}
             disabled={loading || Boolean(error)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
-            {t("commissions.downloadCSV") || "Download CSV"}
-          </Button>
+            reportLabel={t("reports.commissions")}
+          />
         </div>
       </div>
     </Dialog>
