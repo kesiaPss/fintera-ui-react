@@ -2,11 +2,10 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { analyticsApi } from "../api";
-import { projectsApi } from "../../projects/api";
 import { paymentsApi } from "../../payments/api";
 
 import { useToast } from "@/contexts/ToastContext";
-import { Banner } from "@/shared/ui";
+import { Banner, ProjectSelect } from "@/shared/ui";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -63,6 +62,7 @@ const Analytics = () => {
 
     // Filter state
     const [filterValue, setFilterValue] = useState("All");
+    const [filterLabel, setFilterLabel] = useState(null);
     const [isFiltering, setIsFiltering] = useState(false);
 
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -71,27 +71,12 @@ const Analytics = () => {
     const [isFilteringTrend, setIsFilteringTrend] = useState(false);
 
     // Real data state
-    const [projects, setProjects] = useState([]);
     const [overviewData, setOverviewData] = useState(null);
     const [distribution, setDistribution] = useState(null);
     const [performance, setPerformance] = useState(null);
     const [sellersPerformance, setSellersPerformance] = useState([]);
     const [paymentsStats, setPaymentsStats] = useState(null);
 
-
-    // Fetch projects for filter
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const data = await projectsApi.list({ per_page: 100 });
-                setProjects(data.projects || []);
-            } catch (err) {
-                console.error("Error fetching projects for filter:", err);
-            }
-        };
-
-        fetchProjects();
-    }, []);
 
     useEffect(() => {
         const fetchPaymentStats = async () => {
@@ -105,16 +90,6 @@ const Analytics = () => {
 
         fetchPaymentStats();
     }, []);
-
-    // Format project options for the project filter
-    const projectOptions = useMemo(() => {
-        const baseOptions = [{ label: t("common.all"), value: "All" }];
-        const projectList = projects.map(p => ({
-            label: p.name,
-            value: p.id.toString()
-        }));
-        return [...baseOptions, ...projectList];
-    }, [projects, t]);
 
     // Fetch main analytics (Overview totals, Distribution, Performance)
     const fetchMainAnalytics = useCallback(async () => {
@@ -174,8 +149,9 @@ const Analytics = () => {
         fetchTrendData();
     }, [fetchTrendData]);
 
-    const handleFilterChange = useCallback((val) => {
+    const handleFilterChange = useCallback((val, name) => {
         setFilterValue(val);
+        setFilterLabel(name ?? null);
     }, []);
 
     const currencySymbol = overviewData?.currency_symbol || "L";
@@ -220,14 +196,6 @@ const Analytics = () => {
                 null,
         };
     }, [overviewData, paymentsStats]);
-
-    const growthProjects = useMemo(
-        () =>
-            filterValue === "All"
-                ? projects
-                : projects.filter((project) => String(project.id) === filterValue),
-        [projects, filterValue]
-    );
 
     const handleExport = useCallback(
         async (format) => {
@@ -373,8 +341,7 @@ const Analytics = () => {
     const selectedProjectLabel =
         filterValue === "All"
             ? t("analytics.allProjects")
-            : projectOptions.find((option) => option.value === filterValue)
-                  ?.label || t("analytics.allProjects");
+            : filterLabel || t("analytics.allProjects");
 
     const statsForGrid = useMemo(() => {
         const ov = overviewData;
@@ -499,29 +466,12 @@ const Analytics = () => {
                     </div>
 
                     <div id="analytics-filters" className="flex flex-wrap items-center gap-2">
-                        <div className="relative">
-                            <select
-                                value={filterValue}
-                                onChange={(event) => handleFilterChange(event.target.value)}
-                                aria-label={t("analytics.allProjects")}
-                                className="h-[38px] appearance-none rounded-control border border-line bg-surface pl-3 pr-8 text-label font-semibold text-ink-2 focus:border-brand focus:outline-hidden"
-                            >
-                                {projectOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <svg
-                                className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
-                            </svg>
-                        </div>
+                        <ProjectSelect
+                            value={filterValue}
+                            onChange={handleFilterChange}
+                            allLabel={t("common.all")}
+                            ariaLabel={t("analytics.allProjects")}
+                        />
 
                         <div className="flex h-[38px] items-center rounded-control border border-line bg-surface">
                             <button
@@ -603,7 +553,6 @@ const Analytics = () => {
                                 trendData={trendData}
                                 trendProjectId={trendProjectId}
                                 setTrendProjectId={setTrendProjectId}
-                                projectOptions={projectOptions}
                                 selectedYear={selectedYear}
                                 setSelectedYear={setSelectedYear}
                                 isFiltering={isFilteringTrend}
@@ -631,7 +580,6 @@ const Analytics = () => {
                         <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                             <div className="h-full xl:col-span-2">
                                 <GrowthByProject
-                                    projects={growthProjects}
                                     performance={performance}
                                     t={t}
                                 />
