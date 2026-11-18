@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import en from "../../../locales/en.json";
@@ -114,7 +115,7 @@ afterEach(() => {
 
 describe("Admin commissions credits", () => {
   it("shows the pending credit per seller and the net payable", async () => {
-    render(<Commissions />);
+    render(<MemoryRouter><Commissions /></MemoryRouter>);
 
     expect(await screen.findByText("Commission credits")).toBeInTheDocument();
     expect(screen.getByText("Pending credit")).toBeInTheDocument();
@@ -130,7 +131,7 @@ describe("Admin commissions credits", () => {
   });
 
   it("applies a credit and refreshes the report", async () => {
-    render(<Commissions />);
+    render(<MemoryRouter><Commissions /></MemoryRouter>);
 
     fireEvent.click(
       (await screen.findAllByRole("button", { name: "Apply credit" }))[0]
@@ -165,7 +166,7 @@ describe("Commissions export formats", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
 
-    render(<Commissions />);
+    render(<MemoryRouter><Commissions /></MemoryRouter>);
     await screen.findAllByText("Ana Vendedora");
 
     expect(

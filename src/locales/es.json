@@ -1403,7 +1403,8 @@
     "creditApplyConfirm": "Aplicar crédito",
     "creditApplySuccess": "Crédito de comisión aplicado.",
     "creditApplyError": "No se pudo aplicar el crédito de comisión.",
-    "creditEmpty": "Sin créditos de comisión en el periodo."
+    "creditEmpty": "Sin créditos de comisión en el periodo.",
+    "unassigned": "Sin vendedor"
   },
   "filters": {
     "contractSearchPlaceholder": "Buscar contratos...",
@@ -1415,6 +1416,49 @@
     "endDate": "Hasta"
   },
   "contracts": {
+    "assignment": {
+      "title": "Vendedor y asignación",
+      "reassign": "Reasignar",
+      "status": "Estado",
+      "origin": "Origen",
+      "assignedAt": "Asignado",
+      "deadline": "Vence",
+      "commission": "Comisión",
+      "commissionPaid": "pagada",
+      "commissionPending": "pendiente",
+      "unassigned": "Sin vendedor asignado",
+      "unassignedHint": "Esta reserva no tiene vendedor. Reasígnale uno para atribuir la comisión.",
+      "history": "Historial",
+      "unknownSeller": "Vendedor desconocido",
+      "statusValue": {
+        "accepted": "Aceptada",
+        "pending": "Pendiente",
+        "expired": "Expirada",
+        "superseded": "Reemplazada",
+        "none": "Sin asignar"
+      },
+      "originValue": {
+        "referral": "Referido",
+        "manual": "Manual",
+        "automatic": "Automático",
+        "none": "Sin origen"
+      },
+      "dialogTitle": "Reasignar vendedor",
+      "dialogDescription": "Elige un vendedor o deja que el sistema seleccione uno disponible.",
+      "paidWarning": "La comisión ya fue pagada. Al reasignar se generará un crédito pendiente al vendedor anterior y la comisión quedará a nombre del nuevo vendedor.",
+      "modeAutomatic": "Asignación automática",
+      "modeSeller": "Elegir vendedor",
+      "automaticHint": "Se elegirá al vendedor con mejor puntaje y menor carga de reservas.",
+      "excludeCurrent": "Evitar al vendedor actual",
+      "searchSeller": "Vendedor",
+      "searchPlaceholder": "Buscar por nombre, zona, teléfono o correo",
+      "direct": "Asignar directamente",
+      "directHint": "El vendedor recibe la reserva sin esperar aceptación.",
+      "directRequired": "El contrato ya está aprobado o cerrado; la asignación se aplica directamente.",
+      "confirm": "Reasignar",
+      "success": "Vendedor reasignado",
+      "error": "No se pudo reasignar el vendedor"
+    },
     "amount": "Monto​",
     "balance": "Saldo",
     "totalBalance": "Saldo Total",

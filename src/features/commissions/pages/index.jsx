@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import AuthContext from "@/contexts/AuthContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -182,7 +183,10 @@ function Commissions() {
         title: t("commissions.payoutTitle"),
         description: t("commissions.payoutDescription", {
           amount: money(row.commission),
-          seller: row.seller || t("commissions.sellerFallback"),
+          seller:
+            row.seller && row.seller !== "Unknown"
+              ? row.seller
+              : t("commissions.unassigned"),
         }),
         confirmLabel: t("commissions.payoutConfirm"),
       });
@@ -274,11 +278,24 @@ function Commissions() {
         render: (row) => (
           <div className="min-w-0">
             <p className="font-semibold text-ink">
-              {row.is_historical ? t("historical.chip") : `#${row.contract_id}`}
+              {row.is_historical ? (
+                t("historical.chip")
+              ) : row.contract_guid ? (
+                <Link
+                  to={`/contracts/${row.contract_guid}`}
+                  className="hover:text-brand-strong hover:underline"
+                >
+                  #{row.contract_id}
+                </Link>
+              ) : (
+                `#${row.contract_id}`
+              )}
             </p>
             <div className="flex items-center gap-1.5">
               <p className="min-w-0 truncate text-micro text-ink-3">
-                {row.seller || "—"}
+                {row.seller && row.seller !== "Unknown"
+                  ? row.seller
+                  : t("commissions.unassigned")}
               </p>
               <ScoreBadge value={readSellerScore(row)} />
             </div>
@@ -516,7 +533,13 @@ function Commissions() {
                           </p>
                           <div className="flex items-center gap-1.5">
                             <p className="min-w-0 truncate text-micro text-ink-3">
-                              {[row.seller, row.project, formatDate(row.date)]
+                              {[
+                                row.seller && row.seller !== "Unknown"
+                                  ? row.seller
+                                  : t("commissions.unassigned"),
+                                row.project,
+                                formatDate(row.date),
+                              ]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </p>
