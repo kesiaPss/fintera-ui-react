@@ -25,6 +25,7 @@ import {
   Tabs,
 } from "@/shared/ui";
 import { formatCurrency, formatDate } from "@/shared/utils/formatters";
+import { readPagination } from "@/shared/utils/pagination";
 
 const PER_PAGE = 20;
 
@@ -185,8 +186,9 @@ function Payments() {
       });
       setPayments(data.payments || []);
       const pagination = data.pagination || {};
-      setTotalPages(Math.max(1, parseInt(pagination.pages || 1, 10)));
-      setTotal(parseInt(pagination.count || pagination.total || 0, 10));
+      const meta = readPagination(pagination, PER_PAGE);
+      setTotalPages(meta.totalPages);
+      setTotal(meta.total);
     } catch (err) {
       setError(err.message);
     } finally {
