@@ -168,3 +168,102 @@ describe("NotificationsBell assignments", () => {
     expect(screen.getByText("Cobro registrado")).toBeInTheDocument();
   });
 });
+
+describe("NotificationsBell pagination", () => {
+  const notification = (id, title) => ({
+    id,
+    title,
+    message: `${title} detail`,
+    notification_type: "payment_overdue",
+    created_at: assignedAt,
+    read_at: null,
+  });
+
+  it("appends older notifications when loading more", async () => {
+    sellerApi.listPendingAssignments.mockResolvedValue({ assignments: [] });
+    notificationsApi.list
+      .mockResolvedValueOnce({
+        notifications: [notification(30, "Newest")],
+        next_cursor: 30,
+        has_more: true,
+        unread_count: 1,
+        pagination: { total: 2 },
+      })
+      .mockResolvedValueOnce({
+        notifications: [notification(29, "Older")],
+        next_cursor: null,
+        has_more: false,
+        unread_count: 2,
+        pagination: { total: 2 },
+      });
+
+    render(<NotificationsBell />);
+    await waitFor(() => expect(notificationsApi.list).toHaveBeenCalled());
+    await openBell();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    expect(await screen.findByText("Older")).toBeInTheDocument();
+    expect(screen.getByText("Newest")).toBeInTheDocument();
+    expect(notificationsApi.list).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: 30,
+    });
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("hides load more when the first page is the last page", async () => {
+    sellerApi.listPendingAssignments.mockResolvedValue({ assignments: [] });
+    notificationsApi.list.mockResolvedValue({
+      notifications: [notification(1, "Only")],
+      next_cursor: null,
+      has_more: false,
+      unread_count: 1,
+      pagination: { total: 1 },
+    });
+
+    render(<NotificationsBell />);
+    await waitFor(() => expect(notificationsApi.list).toHaveBeenCalled());
+
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("shows the server unread count above the loaded row count", async () => {
+    sellerApi.listPendingAssignments.mockResolvedValue({ assignments: [] });
+    notificationsApi.list.mockResolvedValue({
+      notifications: [notification(1, "Only loaded row")],
+      next_cursor: 1,
+      has_more: true,
+      unread_count: 40,
+      pagination: { total: 40 },
+    });
+
+    render(<NotificationsBell />);
+
+    expect(await screen.findByText("40")).toBeInTheDocument();
+  });
+
+  it("requests unread notifications when the unread tab is selected", async () => {
+    sellerApi.listPendingAssignments.mockResolvedValue({ assignments: [] });
+    notificationsApi.list.mockResolvedValue({
+      notifications: [],
+      next_cursor: null,
+      has_more: false,
+      unread_count: 0,
+      pagination: { total: 0 },
+    });
+
+    render(<NotificationsBell />);
+    await waitFor(() => expect(notificationsApi.list).toHaveBeenCalled());
+    await openBell();
+
+    fireEvent.click(screen.getByRole("button", { name: "Unread 0" }));
+
+    await waitFor(() =>
+      expect(notificationsApi.list).toHaveBeenLastCalledWith({
+        limit: 20,
+        status: "unread",
+      })
+    );
+  });
+});
