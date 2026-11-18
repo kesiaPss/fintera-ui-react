@@ -86,6 +86,15 @@ Page/component
 - A `401` response dispatches `auth:unauthorized` on `window`; `AuthContext`
   listens for it and logs the user out.
 
+## Notifications bell
+
+`src/shared/header/NotificationsBell.jsx` loads notifications from
+`GET /api/v1/notifications` in cursor-paged batches of 20. The first response
+is the newest page; the "Load more" button requests `cursor=<last loaded ID>`
+and appends the result, hiding itself when `has_more` is false. The bell badge
+uses the server `unread_count` rather than counting loaded rows, and selecting
+"No leídas" refetches with `status=unread` instead of filtering in memory.
+
 ## Build and PWA
 
 `vite.config.js` configures:

@@ -9,6 +9,8 @@ import {
   normalizeAssignmentStatus,
 } from "@/features/seller/utils/assignment";
 
+const PAGE_SIZE = 20;
+
 const timeAgo = (value, t) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -50,32 +52,49 @@ function NotificationsBell() {
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [moreError, setMoreError] = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [counts, setCounts] = useState({ all: null, unread: 0 });
   const rootRef = useRef(null);
   const retriedRef = useRef(false);
 
   const canSeeAssignments = user?.role === "seller";
 
   const load = useCallback(
-    async (attempt = 0, silent = false) => {
+    async (attempt = 0, silent = false, activeFilter = filter) => {
       if (!token) return;
       if (!silent) setLoading(true);
       setError(null);
+      setMoreError(null);
       try {
+        const params = { limit: PAGE_SIZE };
+        if (activeFilter === "unread") params.status = "unread";
         const [data, assignments] = await Promise.all([
-          notificationsApi.list({}),
+          notificationsApi.list(params),
           canSeeAssignments
             ? sellerApi.listPendingAssignments().catch(() => null)
             : Promise.resolve(null),
         ]);
         setItems(data?.notifications || []);
+        setNextCursor(data?.next_cursor ?? null);
+        setHasMore(Boolean(data?.has_more));
+        setCounts((current) => ({
+          all:
+            activeFilter === "all"
+              ? Number(data?.pagination?.total) || 0
+              : current.all,
+          unread: Number(data?.unread_count) || 0,
+        }));
         setPendingAssignments(normalizeAssignmentList(assignments));
       } catch (err) {
         // A request can fire before the API client receives the token on a
         // cold load; retry once shortly after hydration.
         if (err?.status === 401 && attempt < 1 && !retriedRef.current) {
           retriedRef.current = true;
-          setTimeout(() => load(attempt + 1), 700);
+          setTimeout(() => load(attempt + 1, false, activeFilter), 700);
           return;
         }
         if (!silent) setError("notifications.loadError");
@@ -83,8 +102,36 @@ function NotificationsBell() {
         if (!silent) setLoading(false);
       }
     },
-    [token, canSeeAssignments]
+    [token, canSeeAssignments, filter]
   );
+
+  const loadMore = useCallback(async () => {
+    if (!token || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const params = { limit: PAGE_SIZE };
+      if (filter === "unread") params.status = "unread";
+      if (nextCursor != null) params.cursor = nextCursor;
+      const data = await notificationsApi.list(params);
+      const page = data?.notifications || [];
+      setItems((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...page.filter((item) => !seen.has(item.id))];
+      });
+      setNextCursor(data?.next_cursor ?? null);
+      setHasMore(Boolean(data?.has_more));
+      const unread = Number(data?.unread_count);
+      setCounts((current) => ({
+        all: current.all,
+        unread: Number.isFinite(unread) ? unread : current.unread,
+      }));
+    } catch {
+      setMoreError("notifications.loadMoreError");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [token, hasMore, loadingMore, filter, nextCursor]);
 
   useEffect(() => {
     if (!authLoading && token) load();
@@ -112,6 +159,11 @@ function NotificationsBell() {
   const markAll = async () => {
     try {
       await notificationsApi.markAllAsRead();
+      setCounts((current) => ({ ...current, unread: 0 }));
+      if (filter === "unread") {
+        load(0, true, "unread");
+        return;
+      }
       const now = new Date().toISOString();
       setItems((current) =>
         current.map((item) => ({ ...item, read_at: item.read_at || now }))
@@ -122,6 +174,7 @@ function NotificationsBell() {
   };
 
   const markOne = async (id) => {
+    const target = items.find((item) => item.id === id);
     try {
       await notificationsApi.markAsRead(id);
       const now = new Date().toISOString();
@@ -130,6 +183,12 @@ function NotificationsBell() {
           item.id === id ? { ...item, read_at: item.read_at || now } : item
         )
       );
+      if (target && isUnread(target)) {
+        setCounts((current) => ({
+          ...current,
+          unread: Math.max(0, current.unread - 1),
+        }));
+      }
     } catch {
       setError("notifications.markOneError");
     }
@@ -191,23 +250,12 @@ function NotificationsBell() {
     [items, assignmentEntries, assignmentIds]
   );
 
-  const unreadCount =
-    visibleNotifications.filter(isUnread).length +
-    Math.min(
-      assignmentEntries.length,
-      items.filter((item) => {
-        if (!isAssignmentCreated(notificationType(item)) || !isUnread(item)) {
-          return false;
-        }
-        const id = assignmentNotificationId(item);
-        return id ? assignmentIds.has(String(id)) : assignmentEntries.length > 0;
-      }).length
-    );
+  const unreadCount = counts.unread;
   const visibleItems =
     filter === "unread"
       ? visibleNotifications.filter(isUnread)
       : visibleNotifications;
-  const allCount = visibleNotifications.length + assignmentEntries.length;
+  const allCount = counts.all ?? 0;
 
   return (
     <div className="relative" ref={rootRef}>
@@ -384,6 +432,30 @@ function NotificationsBell() {
                   </div>
                 );
               })}
+            {!loading &&
+              !error &&
+              !loadingMore &&
+              hasMore && (
+                <div className="border-t border-line/60 px-3 py-2">
+                  {moreError && (
+                    <p className="mb-1 text-center text-micro text-danger">
+                      {t(moreError)}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    className="w-full rounded-control py-1 text-micro font-semibold text-brand transition-colors hover:bg-surface-2"
+                  >
+                    {t("notifications.loadMore")}
+                  </button>
+                </div>
+              )}
+            {!loading && !error && loadingMore && (
+              <p className="px-3 py-2 text-center text-micro text-ink-3">
+                {t("notifications.loadingMore")}
+              </p>
+            )}
             {!loading &&
               !error &&
               assignmentEntries.length === 0 &&
