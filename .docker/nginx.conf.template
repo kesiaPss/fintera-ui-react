@@ -14,7 +14,7 @@ server {
 
     # The service worker must always be revalidated so updates roll out.
     location = /sw.js {
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Cache-Control "no-cache";
         try_files $uri =404;
     }
 
