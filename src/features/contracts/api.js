@@ -11,6 +11,9 @@ export const contractsApi = {
 
     getDetails: (projectId, lotId, contractId) => apiClient.get(`/api/v1/projects/${projectId}/lots/${lotId}/contracts/${contractId}`),
 
+    listAssignments: (guid) => apiClient.get(`/api/v1/contracts/${guid}/assignments`),
+    reassign: (guid, payload) => apiClient.post(`/api/v1/contracts/${guid}/assignments`, payload),
+
     update: (projectId, lotId, contractId, data) =>
         apiClient.patch(`/api/v1/projects/${projectId}/lots/${lotId}/contracts/${contractId}`, data),
 

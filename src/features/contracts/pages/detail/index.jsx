@@ -40,6 +40,8 @@ import CreditScoreCard from "../../components/CreditScoreCard";
 import DocumentsTab from "../../components/ContractDetails/tabs/DocumentsTab";
 import PaymentSchedulePanel from "../../components/PaymentSchedulePanel";
 import RejectionModal from "../../components/RejectionModal";
+import AssignmentCard from "../../components/AssignmentCard";
+import ReassignDialog from "../../components/ReassignDialog";
 import LotDetailsModal from "@/features/projects/components/lots/LotDetailsModal";
 
 const money = (value) => {
@@ -162,6 +164,10 @@ function ContractDetail() {
   const [paymentRequestToken, setPaymentRequestToken] = useState(0);
   const [lotDetails, setLotDetails] = useState(null);
   const [lotLoading, setLotLoading] = useState(false);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
 
   const tabs = useMemo(
     () => [
@@ -192,9 +198,28 @@ function ContractDetail() {
 
   const refreshContract = useCallback(() => load({ silent: true }), [load]);
 
+  const loadAssignments = useCallback(async () => {
+    if (!guid) return;
+    setAssignmentsLoading(true);
+    try {
+      const data = await contractsApi.listAssignments(guid);
+      setAssignments(Array.isArray(data?.assignments) ? data.assignments : []);
+    } catch {
+      setAssignments([]);
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  }, [guid]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (contract?.guid && user?.role === "admin") {
+      loadAssignments();
+    }
+  }, [contract?.guid, loadAssignments, user?.role]);
 
   const schedule = useMemo(
     () =>
@@ -391,6 +416,22 @@ function ContractDetail() {
       showToast(t("contracts.reminderSent"), "success");
     } catch (err) {
       showToast(err?.message || t("contracts.reminderError"), "error");
+    }
+  };
+
+  const handleReassign = async (payload) => {
+    if (!contract?.guid || reassigning) return;
+    setReassigning(true);
+    try {
+      await contractsApi.reassign(contract.guid, payload);
+      setReassignOpen(false);
+      showToast(t("contracts.assignment.success"), "success");
+      await load({ silent: true });
+      await loadAssignments();
+    } catch (err) {
+      showToast(err?.message || t("contracts.assignment.error"), "error");
+    } finally {
+      setReassigning(false);
     }
   };
 
@@ -880,6 +921,14 @@ function ContractDetail() {
                   )}
               </Card>
 
+              <AssignmentCard
+                contract={contract}
+                history={assignments}
+                loading={assignmentsLoading}
+                isAdmin={isAdmin}
+                onReassign={() => setReassignOpen(true)}
+              />
+
               <Card
                 title={t("contracts.lotCard")}
                 action={
@@ -1198,6 +1247,14 @@ function ContractDetail() {
         onClose={() => setRejectionOpen(false)}
         onSubmit={handleReject}
         loading={actionLoading}
+      />
+
+      <ReassignDialog
+        open={reassignOpen}
+        contract={contract}
+        onClose={() => setReassignOpen(false)}
+        onSubmit={handleReassign}
+        loading={reassigning}
       />
 
       {lotDetails && (

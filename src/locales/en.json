@@ -1401,7 +1401,8 @@
     "creditApplyConfirm": "Apply credit",
     "creditApplySuccess": "Commission credit applied.",
     "creditApplyError": "We couldn't apply the commission credit.",
-    "creditEmpty": "No commission credits in this period."
+    "creditEmpty": "No commission credits in this period.",
+    "unassigned": "No seller"
   },
   "filters": {
     "contractSearchPlaceholder": "Search contracts...",
@@ -1413,6 +1414,49 @@
     "endDate": "End date"
   },
   "contracts": {
+    "assignment": {
+      "title": "Seller and assignment",
+      "reassign": "Reassign",
+      "status": "Status",
+      "origin": "Origin",
+      "assignedAt": "Assigned",
+      "deadline": "Due",
+      "commission": "Commission",
+      "commissionPaid": "paid",
+      "commissionPending": "pending",
+      "unassigned": "No seller assigned",
+      "unassignedHint": "This reservation has no seller. Reassign one to attribute the commission.",
+      "history": "History",
+      "unknownSeller": "Unknown seller",
+      "statusValue": {
+        "accepted": "Accepted",
+        "pending": "Pending",
+        "expired": "Expired",
+        "superseded": "Superseded",
+        "none": "Unassigned"
+      },
+      "originValue": {
+        "referral": "Referral",
+        "manual": "Manual",
+        "automatic": "Automatic",
+        "none": "No origin"
+      },
+      "dialogTitle": "Reassign seller",
+      "dialogDescription": "Choose a seller or let the system pick an available one.",
+      "paidWarning": "The commission was already paid. Reassigning creates a pending credit for the previous seller and moves the commission to the new seller.",
+      "modeAutomatic": "Automatic assignment",
+      "modeSeller": "Choose seller",
+      "automaticHint": "The seller with the best score and lightest reservation load will be picked.",
+      "excludeCurrent": "Avoid the current seller",
+      "searchSeller": "Seller",
+      "searchPlaceholder": "Search by name, zone, phone, or email",
+      "direct": "Assign directly",
+      "directHint": "The seller receives the reservation without waiting for acceptance.",
+      "directRequired": "The contract is already approved or closed; the assignment is applied directly.",
+      "confirm": "Reassign",
+      "success": "Seller reassigned",
+      "error": "The seller could not be reassigned"
+    },
     "amount": "Amount",
     "balance": "Balance",
     "noContracts": "No Contracts",
