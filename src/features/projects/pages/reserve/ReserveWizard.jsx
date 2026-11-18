@@ -8,6 +8,7 @@ import { useLocale } from "@/contexts/LocaleContext";
 import CreditScoreCard from "../../../contracts/components/CreditScoreCard";
 import { sellerApi } from "../../../seller/api";
 import { normalizeSellerList, sellerName } from "../../../seller/utils/assignment";
+import { readPagination } from "@/shared/utils/pagination";
 import { formatBytes } from "../../components/media/mediaFiles";
 import { validateClient, validateReserveAmount } from "./reserveRules";
 import SellerQuestion from "./SellerQuestion";
@@ -151,7 +152,7 @@ function ReserveWizard({
           setUserResults((prevUsers) => [...prevUsers, ...fetchedUsers]);
         }
 
-        setTotalPages(pagination.pages || 1);
+        setTotalPages(readPagination(pagination, 10).totalPages);
         setCurrentPage(page);
       } catch (err) {
         console.error("Error searching users:", err);

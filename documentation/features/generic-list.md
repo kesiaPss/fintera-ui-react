@@ -4,6 +4,36 @@
 
 The `GenericList` component is a highly reusable, feature-rich list component that handles fetching, pagination, and rendering of any entity type (users, projects, contracts, payments, etc.). It provides both mobile card and desktop table views with built-in loading, error, and empty states.
 
+## Admin list rule: 20 rows per page
+
+Every list and table in the admin UI shows at most 20 rows per page and offers
+pagination controls with the current range and the total. The shared
+`Pagination` component (`src/shared/ui/Pagination.jsx`) is used with
+`perPage={20}`, and the page is requested from the server; lists must not
+download every item to paginate in the browser.
+
+Read pagination metadata with `readPagination`
+(`src/shared/utils/pagination.js`). It accepts the standard `total_pages` key,
+the legacy `pages` key, and computes the page count from `total` when the API
+omits both.
+
+- Changing a filter or search term returns the list to page 1.
+- Commissions (table and credits card) follow this rule; totals and the seller
+  list come from the server for the whole filtered period. See
+  `openspec/changes/paginate-commissions/proposal.md`.
+- Project selectors are not tables: they use the `ProjectSelect` component
+  (`src/shared/ui/ProjectSelect.jsx`), which loads 20 projects at a time, searches
+  on the server after a 400 ms pause, offers "load more", and keeps the name of a
+  selected project that is not on the loaded page.
+
+### Documented exceptions
+
+These keep their current behavior until a separate change addresses them:
+
+- The contract ledger entries tab.
+- The contract detail table.
+- Static reference content such as the keyboard shortcuts dialog.
+
 ## Location
 
 ```
@@ -455,7 +485,8 @@ function UserData({ userInfo, index, token, onClick, isMobileCard = false }) {
 - Check browser console for API errors
 
 ### Pagination not working
-- Ensure API returns `pagination: { page, pages }` metadata
+- Ensure API returns `pagination: { page, per_page, total, total_pages }` metadata.
+  For endpoints that only return `total`, use `readPagination` to derive the pages.
 - Verify `itemsPerPage` is set appropriately
 
 ### Mobile/Desktop views not switching

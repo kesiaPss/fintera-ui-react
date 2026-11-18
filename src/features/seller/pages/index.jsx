@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,6 +14,7 @@ import { contractsApi } from "@/features/contracts/api";
 import { paymentsApi } from "@/features/payments/api";
 import { reportsApi } from "@/shared/api/reports";
 import { formatStatus } from "@/shared/utils/formatStatus";
+import useDebounce from "@/hooks/useDebounce";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -46,7 +47,7 @@ import {
   readSellerScore,
   readSellerScoreMetrics,
 } from "../utils/scoreMetrics";
-import { buildCommissionKpis, summarizeCommissions } from "./commissions/utils";
+import { buildCommissionKpis } from "./commissions/utils";
 import SellerKpis from "../components/SellerKpis";
 import WorkspaceTableCard from "../components/WorkspaceTableCard";
 import RegisterCollectionDialog from "../components/RegisterCollectionDialog";
@@ -66,6 +67,23 @@ const monthEnd = () => {
   return new Date(now.getFullYear(), now.getMonth() + 1, 0)
     .toISOString()
     .slice(0, 10);
+};
+
+const EMPTY_COMMISSION_TOTALS = {
+  commission: 0,
+  amount: 0,
+  paid: 0,
+  pending: 0,
+  paid_count: 0,
+  average_rate: 0,
+  net_pending: 0,
+};
+
+const EMPTY_COMMISSION_PAGINATION = {
+  page: 1,
+  per_page: PER_PAGE,
+  total: 0,
+  total_pages: 0,
 };
 
 const matchesSearch = (term, values) =>
@@ -90,6 +108,7 @@ function SellerWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search.trim(), 300);
   const [page, setPage] = useState(1);
   const [collecting, setCollecting] = useState(null);
   const [collectTarget, setCollectTarget] = useState(null);
@@ -100,7 +119,13 @@ function SellerWorkspace() {
   const [stats, setStats] = useState({ pending: 0, overdue: 0, collected: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
   const [commissions, setCommissions] = useState([]);
+  const [commissionsTotals, setCommissionsTotals] = useState(EMPTY_COMMISSION_TOTALS);
+  const [commissionsPagination, setCommissionsPagination] = useState(EMPTY_COMMISSION_PAGINATION);
+  const [commissionsPage, setCommissionsPage] = useState(1);
   const [commissionsCredits, setCommissionsCredits] = useState([]);
+  const [commissionsPendingCredits, setCommissionsPendingCredits] = useState(0);
+  const [commissionsCreditsPagination, setCommissionsCreditsPagination] = useState(EMPTY_COMMISSION_PAGINATION);
+  const [commissionsCreditsPage, setCommissionsCreditsPage] = useState(1);
   const [commissionsLoading, setCommissionsLoading] = useState(true);
   const [commissionsError, setCommissionsError] = useState(false);
   const [historicalSales, setHistoricalSales] = useState([]);
@@ -136,19 +161,31 @@ function SellerWorkspace() {
     }
   };
 
-  const loadCommissions = async () => {
+  const loadCommissions = useCallback(async () => {
     setCommissionsLoading(true);
     setCommissionsError(false);
     try {
-      const data = await commissionsApi.list(monthStart(), monthEnd());
+      const data = await commissionsApi.list(monthStart(), monthEnd(), {
+        page: commissionsPage,
+        perPage: PER_PAGE,
+        creditsPage: commissionsCreditsPage,
+        creditsPerPage: PER_PAGE,
+        search: tab === "comisiones" ? debouncedSearch : "",
+      });
       setCommissions(data?.commissions || []);
+      setCommissionsTotals(data?.totals || EMPTY_COMMISSION_TOTALS);
+      setCommissionsPagination(data?.pagination || EMPTY_COMMISSION_PAGINATION);
       setCommissionsCredits(readCommissionCredits(data));
+      setCommissionsPendingCredits(Number(data?.pending_credits || 0));
+      setCommissionsCreditsPagination(
+        data?.credits_pagination || EMPTY_COMMISSION_PAGINATION
+      );
     } catch {
       setCommissionsError(true);
     } finally {
       setCommissionsLoading(false);
     }
-  };
+  }, [commissionsPage, commissionsCreditsPage, debouncedSearch, tab]);
 
   const loadHistoricalSales = async () => {
     if (typeof sellerApi.listHistoricalSales !== "function") return;
@@ -166,9 +203,12 @@ function SellerWorkspace() {
   useEffect(() => {
     loadContracts();
     loadStats();
-    loadCommissions();
     loadHistoricalSales();
   }, []);
+
+  useEffect(() => {
+    loadCommissions();
+  }, [loadCommissions]);
 
   useEffect(() => {
     if (location.state?.openHistoricalImport) setImportOpen(true);
@@ -177,6 +217,7 @@ function SellerWorkspace() {
   useEffect(() => {
     setSearch("");
     setPage(1);
+    setCommissionsPage(1);
   }, [tab]);
 
   const openCollect = async (row) => {
@@ -392,23 +433,13 @@ function SellerWorkspace() {
     [allDocuments, searchTerm]
   );
 
-  const filteredCommissions = useMemo(
-    () =>
-      commissions.filter((row) =>
-        matchesSearch(searchTerm, [
-          row.client_name,
-          row.project,
-          row.lot,
-          row.seller,
-          row.contract_id != null ? `#${row.contract_id}` : "",
-        ])
-      ),
-    [commissions, searchTerm]
-  );
-
   const commissionTotals = useMemo(
-    () => summarizeCommissions(commissions),
-    [commissions]
+    () => ({
+      total: commissionsTotals.commission,
+      pending: commissionsTotals.pending,
+      paid: commissionsTotals.paid,
+    }),
+    [commissionsTotals]
   );
 
   const pendingClients = useMemo(
@@ -450,9 +481,7 @@ function SellerWorkspace() {
     [allDocuments]
   );
 
-  const commissionRate = commissionTotals.amount
-    ? ((commissionTotals.total / commissionTotals.amount) * 100).toFixed(1)
-    : "0.0";
+  const commissionRate = Number(commissionsTotals.average_rate || 0).toFixed(1);
 
   const kpis = {
     clientes: [
@@ -547,7 +576,10 @@ function SellerWorkspace() {
     },
     {
       value: "comisiones",
-      label: tabLabel(t("seller.tabCommissions"), commissions.length),
+      label: tabLabel(
+        t("seller.tabCommissions"),
+        commissionsPagination.period_total ?? commissionsPagination.total
+      ),
       path: "/vendedor/comisiones",
     },
     {
@@ -1126,17 +1158,21 @@ function SellerWorkspace() {
   const rowsByTab = {
     clientes: filteredClients,
     cobros: collections,
-    comisiones: filteredCommissions,
+    comisiones: commissions,
     documentos: documents,
   };
 
   const rows = rowsByTab[tab];
-  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-  const currentPage = Math.min(page, pageCount);
-  const visibleRows = rows.slice(
-    (currentPage - 1) * PER_PAGE,
-    currentPage * PER_PAGE
-  );
+  const isCommissionsTab = tab === "comisiones";
+  const pageCount = isCommissionsTab
+    ? Math.max(1, commissionsPagination.total_pages)
+    : Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const currentPage = isCommissionsTab
+    ? commissionsPage
+    : Math.min(page, pageCount);
+  const visibleRows = isCommissionsTab
+    ? rows
+    : rows.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   const emptyConfig = {
     clientes: {
@@ -1190,7 +1226,7 @@ function SellerWorkspace() {
     comisiones: {
       title: t("seller.tabCommissions"),
       subtitle: t("seller.commissionsSubtitle", {
-        count: commissions.length,
+        count: commissionsPagination.total,
         rate: commissionRate,
       }),
     },
@@ -1245,6 +1281,7 @@ function SellerWorkspace() {
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
+                setCommissionsPage(1);
               }}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
@@ -1274,8 +1311,11 @@ function SellerWorkspace() {
         {tab === "comisiones" && !commissionsError && (
           <CommissionCreditsCard
             credits={commissionsCredits}
+            pendingCredits={commissionsPendingCredits}
             pendingCommissions={commissionTotals.pending}
             loading={commissionsLoading}
+            creditsPagination={commissionsCreditsPagination}
+            onCreditsPageChange={setCommissionsCreditsPage}
           />
         )}
 
@@ -1305,9 +1345,9 @@ function SellerWorkspace() {
             empty={empty}
             page={currentPage}
             pageCount={pageCount}
-            total={rows.length}
+            total={isCommissionsTab ? commissionsPagination.total : rows.length}
             perPage={PER_PAGE}
-            onPageChange={setPage}
+            onPageChange={isCommissionsTab ? setCommissionsPage : setPage}
           />
         )}
       </div>

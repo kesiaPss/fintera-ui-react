@@ -2,6 +2,7 @@ import { memo, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Line } from "react-chartjs-2";
 import PropTypes from "prop-types";
+import { ProjectSelect } from "@/shared/ui";
 import ChartDataTable from "./ChartDataTable";
 import { localizeMonth, monthOrder } from "./monthLabels";
 
@@ -19,7 +20,6 @@ const RevenueTrendChart = memo(
     trendData,
     trendProjectId,
     setTrendProjectId,
-    projectOptions,
     selectedYear,
     setSelectedYear,
     isFiltering,
@@ -94,34 +94,12 @@ const RevenueTrendChart = memo(
             {t("analytics.revenueTrend")}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <select
-                value={trendProjectId}
-                onChange={(event) => setTrendProjectId(event.target.value)}
-                aria-label={t("analytics.allProjects")}
-                className="h-9 appearance-none rounded-control border border-line bg-surface pl-2.5 pr-8 text-label font-semibold text-ink-2 focus:border-brand focus:outline-hidden"
-              >
-                {projectOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <svg
-                className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 9l6 6 6-6"
-                />
-              </svg>
-            </div>
+            <ProjectSelect
+              value={trendProjectId}
+              onChange={(value) => setTrendProjectId(value)}
+              allLabel={t("common.all")}
+              ariaLabel={t("analytics.allProjects")}
+            />
 
             <div className="flex h-9 items-center rounded-control border border-line bg-surface">
               <button
@@ -224,7 +202,6 @@ RevenueTrendChart.propTypes = {
   trendData: PropTypes.array,
   trendProjectId: PropTypes.string.isRequired,
   setTrendProjectId: PropTypes.func.isRequired,
-  projectOptions: PropTypes.array.isRequired,
   selectedYear: PropTypes.number.isRequired,
   setSelectedYear: PropTypes.func.isRequired,
   isFiltering: PropTypes.bool.isRequired,

@@ -21,6 +21,7 @@ export {
 export { default as Tabs } from "./Tabs";
 export { default as Table } from "./Table";
 export { default as Pagination } from "./Pagination";
+export { default as ProjectSelect } from "./ProjectSelect";
 export { default as Toggle } from "./Toggle";
 export { default as SegmentedControl } from "./SegmentedControl";
 export { default as Menu } from "./Menu";

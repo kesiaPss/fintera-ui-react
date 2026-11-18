@@ -9,6 +9,7 @@ import useDebounce from "../../../hooks/useDebounce";
 import { useLocale } from "../../../contexts/LocaleContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { readPagination } from "@/shared/utils/pagination";
 import {
   Button,
   EmptyState,
@@ -103,8 +104,8 @@ function Projects() {
     [t]
   );
 
-  const totalProjectCount =
-    Number(pagination.total ?? pagination.count) || projects.length;
+  const paginationMeta = readPagination(pagination, PER_PAGE);
+  const totalProjectCount = paginationMeta.total || projects.length;
   const totalLots = projects.reduce(
     (sum, project) => sum + (Number(project.lot_count) || 0),
     0
@@ -118,7 +119,7 @@ function Projects() {
 
   const pageStart = totalProjectCount > 0 ? (page - 1) * PER_PAGE + 1 : 0;
   const pageEnd = Math.min(page * PER_PAGE, totalProjectCount);
-  const pages = Number(pagination.pages) || 1;
+  const pages = paginationMeta.totalPages;
 
   return (
     <main className="page-shell min-h-screen w-full bg-canvas px-6 pb-6 xl:px-[48px] xl:pb-[48px]">

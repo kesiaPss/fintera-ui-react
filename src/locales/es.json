@@ -2714,6 +2714,13 @@
     "previous": "Página anterior",
     "next": "Página siguiente"
   },
+  "projectSelect": {
+    "search": "Buscar proyectos",
+    "loadMore": "Cargar más",
+    "empty": "No se encontraron proyectos",
+    "loadError": "No se pudieron cargar los proyectos",
+    "unknownProject": "Proyecto desconocido"
+  },
   "score": {
     "high": "Alta",
     "medium": "Media",

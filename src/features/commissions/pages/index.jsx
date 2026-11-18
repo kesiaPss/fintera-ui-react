@@ -18,11 +18,26 @@ import {
   EmptyState,
   ErrorState,
   ExportFormatButtons,
+  Pagination,
   Select,
   Skeleton,
   Table,
 } from "@/shared/ui";
 import { buildExportFilename } from "@/shared/export/formats";
+
+const PAGE_SIZE = 20;
+
+const EMPTY_TOTALS = {
+  commission: 0,
+  amount: 0,
+  paid: 0,
+  pending: 0,
+  paid_count: 0,
+  average_rate: 0,
+  net_pending: 0,
+};
+
+const EMPTY_PAGINATION = { page: 1, per_page: PAGE_SIZE, total: 0, total_pages: 0 };
 
 const money = (value) =>
   `L ${Number(value || 0).toLocaleString("es-HN", { maximumFractionDigits: 0 })}`;
@@ -108,9 +123,16 @@ function Commissions() {
   const [startDate, setStartDate] = useState(monthStart);
   const [endDate, setEndDate] = useState(monthEnd);
   const [items, setItems] = useState([]);
+  const [totals, setTotals] = useState(EMPTY_TOTALS);
+  const [pagination, setPagination] = useState(EMPTY_PAGINATION);
+  const [page, setPage] = useState(1);
+  const [sellers, setSellers] = useState([]);
   const [credits, setCredits] = useState([]);
+  const [pendingCredits, setPendingCredits] = useState(0);
+  const [creditsPagination, setCreditsPagination] = useState(EMPTY_PAGINATION);
+  const [creditsPage, setCreditsPage] = useState(1);
   const [applyingCredit, setApplyingCredit] = useState(null);
-  const [seller, setSeller] = useState("");
+  const [sellerId, setSellerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exportingFormat, setExportingFormat] = useState(null);
@@ -121,60 +143,66 @@ function Commissions() {
     setLoading(true);
     setError(null);
     try {
-      const data = await commissionsApi.list(startDate, endDate);
+      const data = await commissionsApi.list(startDate, endDate, {
+        page,
+        perPage: PAGE_SIZE,
+        sellerId,
+        creditsPage,
+        creditsPerPage: PAGE_SIZE,
+      });
       setItems(data?.commissions || []);
+      setTotals(data?.totals || EMPTY_TOTALS);
+      setPagination(data?.pagination || EMPTY_PAGINATION);
+      setSellers(data?.sellers || []);
       setCredits(readCommissionCredits(data));
+      setCreditsPagination(data?.credits_pagination || EMPTY_PAGINATION);
+      setPendingCredits(Number(data?.pending_credits || 0));
     } catch {
       setError(t("commissions.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, t]);
+  }, [startDate, endDate, sellerId, page, creditsPage, t]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const sellers = useMemo(
-    () =>
-      [
-        ...new Set(
-          [...items, ...credits]
-            .map((entry) => entry.seller)
-            .filter(Boolean)
-        ),
-      ].sort(),
-    [items, credits]
-  );
+  // A seller filter only makes sense while that seller has commissions in the
+  // period. When the period changes and the seller disappears from the server
+  // list, clear the filter so the page does not show an empty list while the
+  // selector claims every seller is selected.
+  useEffect(() => {
+    if (!sellerId) return;
+    if (sellers.some((entry) => String(entry.id) === sellerId)) return;
+    setSellerId("");
+    setPage(1);
+    setCreditsPage(1);
+  }, [sellerId, sellers]);
 
-  const filtered = useMemo(
-    () => (seller ? items.filter((item) => item.seller === seller) : items),
-    [items, seller]
-  );
+  const resetPages = () => {
+    setPage(1);
+    setCreditsPage(1);
+  };
 
-  const filteredCredits = useMemo(
-    () =>
-      seller
-        ? credits.filter((credit) => credit.seller === seller)
-        : credits,
-    [credits, seller]
-  );
+  const handleStartDateChange = (value) => {
+    setStartDate(value);
+    resetPages();
+  };
 
-  const totals = useMemo(
-    () =>
-      filtered.reduce(
-        (acc, item) => ({
-          commission: acc.commission + Number(item.commission || 0),
-          amount: acc.amount + Number(item.amount || 0),
-          paid: acc.paid + (item.commission_paid_at ? Number(item.commission || 0) : 0),
-          pending:
-            acc.pending + (item.commission_paid_at ? 0 : Number(item.commission || 0)),
-          paidCount: acc.paidCount + (item.commission_paid_at ? 1 : 0),
-        }),
-        { commission: 0, amount: 0, paid: 0, pending: 0, paidCount: 0 }
-      ),
-    [filtered]
-  );
+  const handleEndDateChange = (value) => {
+    setEndDate(value);
+    resetPages();
+  };
+
+  const handleSellerChange = (value) => {
+    setSellerId(value);
+    resetPages();
+  };
+
+  const selectedSellerName = sellers.find(
+    (entry) => String(entry.id) === sellerId
+  )?.name;
 
   const handlePay = useCallback(
     async (row) => {
@@ -194,24 +222,16 @@ function Commissions() {
 
       setPaying(row.contract_guid);
       try {
-        const result = await commissionsApi.markPaid(row.contract_guid);
-        const paidAt =
-          result?.contract?.commission_paid_at || new Date().toISOString();
-        setItems((prev) =>
-          prev.map((item) =>
-            item.contract_guid === row.contract_guid
-              ? { ...item, commission_paid_at: paidAt }
-              : item
-          )
-        );
+        await commissionsApi.markPaid(row.contract_guid);
         showToast(t("commissions.payoutSuccess"));
+        await load();
       } catch (err) {
         showToast(err?.message || t("commissions.payoutError"), "error");
       } finally {
         setPaying(null);
       }
     },
-    [showToast, t]
+    [load, showToast, t]
   );
 
   const handleApplyCredit = useCallback(
@@ -241,14 +261,14 @@ function Commissions() {
     [load, showToast, t]
   );
 
-  const averageRate = totals.amount
-    ? ((totals.commission / totals.amount) * 100).toFixed(1)
-    : "0.0";
+  const averageRate = Number(totals.average_rate || 0).toFixed(1);
 
   const handleExport = async (format = "csv") => {
     setExportingFormat(format);
     try {
-      const blob = await commissionsApi.download(startDate, endDate, format);
+      const blob = await commissionsApi.download(startDate, endDate, format, {
+        sellerId,
+      });
       const url = URL.createObjectURL(
         blob instanceof Blob ? blob : new Blob([blob])
       );
@@ -399,9 +419,9 @@ function Commissions() {
             </h1>
             <p className="mt-1 text-body text-ink-3">
               {t("commissions.pageSubtitle", {
-                count: filtered.length,
+                count: pagination.total,
                 rate: averageRate,
-                seller: seller || t("commissions.allSellers"),
+                seller: selectedSellerName || t("commissions.allSellers"),
               })}
             </p>
           </div>
@@ -429,7 +449,7 @@ function Commissions() {
             <input
               type="date"
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+              onChange={(event) => handleStartDateChange(event.target.value)}
               className="h-11 rounded-control border border-line-strong bg-surface px-3 text-body-lg text-ink"
             />
           </label>
@@ -438,17 +458,17 @@ function Commissions() {
             <input
               type="date"
               value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
+              onChange={(event) => handleEndDateChange(event.target.value)}
               className="h-11 rounded-control border border-line-strong bg-surface px-3 text-body-lg text-ink"
             />
           </label>
           <label className="flex min-w-52 flex-col gap-1 text-label font-semibold text-ink-2">
             {t("commissions.seller")}
-            <Select value={seller} onChange={(event) => setSeller(event.target.value)}>
+            <Select value={sellerId} onChange={(event) => handleSellerChange(event.target.value)}>
               <option value="">{t("commissions.allSellers")}</option>
-              {sellers.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+              {sellers.map((entry) => (
+                <option key={entry.id} value={String(entry.id)}>
+                  {entry.name}
                 </option>
               ))}
             </Select>
@@ -482,7 +502,7 @@ function Commissions() {
           <StatCard
             label={t("commissions.periodPaid")}
             value={money(totals.paid)}
-            caption={t("commissions.paidCaption", { count: totals.paidCount })}
+            caption={t("commissions.paidCaption", { count: totals.paid_count })}
             tone="success"
             loading={loading}
             index={2}
@@ -490,13 +510,16 @@ function Commissions() {
         </div>
 
         <CommissionCreditsCard
-          credits={filteredCredits}
+          credits={credits}
+          pendingCredits={pendingCredits}
           pendingCommissions={totals.pending}
           showSeller
           isAdmin={isAdmin}
           applying={applyingCredit}
           onApply={handleApplyCredit}
           loading={loading}
+          creditsPagination={creditsPagination}
+          onCreditsPageChange={setCreditsPage}
           className="motion-fade-up [animation-delay:190ms]"
         />
 
@@ -514,7 +537,7 @@ function Commissions() {
               <div className="px-2">
                 <Table
                   columns={columns}
-                  rows={filtered}
+                  rows={items}
                   getRowKey={(row) => `${row.historical_sale_id || row.contract_id}-${row.seller}`}
                   empty={
                     <div className="p-5">
@@ -584,9 +607,15 @@ function Commissions() {
                   )}
                 />
               </div>
-              {filtered.length > 0 && (
-                <div className="border-t border-line px-5 py-3 text-body text-ink-3">
-                  {t("commissions.countSummary", { count: filtered.length })}
+              {pagination.total > 0 && (
+                <div className="border-t border-line px-5">
+                  <Pagination
+                    page={page}
+                    pageCount={pagination.total_pages || 1}
+                    total={pagination.total}
+                    perPage={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
                 </div>
               )}
             </>
@@ -596,7 +625,7 @@ function Commissions() {
 
       <CommissionRulesSheet
         open={rulesOpen}
-        sellers={sellers}
+        sellers={sellers.map((entry) => entry.name)}
         onClose={() => setRulesOpen(false)}
         onSaved={handleRulesSaved}
       />

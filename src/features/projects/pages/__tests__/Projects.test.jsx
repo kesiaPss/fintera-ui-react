@@ -92,6 +92,23 @@ describe('Projects Component Performance', () => {
       expect(params.get('is_published')).toBe('1');
     });
   });
+
+  it('shows pagination when the API only returns the total', async () => {
+    projectsApi.list.mockResolvedValue({
+      projects: Array.from({ length: 20 }, (_, index) => ({
+        ...baseProject,
+        id: index + 1,
+        guid: `project-${index + 1}`,
+      })),
+      pagination: { total: 28 },
+    });
+
+    renderProjects();
+
+    expect(
+      await screen.findByRole('button', { name: 'pagination.next' })
+    ).toBeInTheDocument();
+  });
 });
 
 const baseProject = {

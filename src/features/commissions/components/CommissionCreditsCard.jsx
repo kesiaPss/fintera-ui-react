@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { useLocale } from "@/contexts/LocaleContext";
-import { Button, Card, Chip, Table } from "@/shared/ui";
+import { Button, Card, Chip, Pagination, Table } from "@/shared/ui";
 import {
   isPendingCredit,
   netPayable,
@@ -49,17 +49,21 @@ function SummaryTile({ label, value, caption, tone = "default", loading }) {
 
 function CommissionCreditsCard({
   credits = [],
+  pendingCredits = null,
   pendingCommissions = 0,
   showSeller = false,
   isAdmin = false,
   applying = null,
   onApply,
   loading = false,
+  creditsPagination = null,
+  onCreditsPageChange,
   className = "",
 }) {
   const { t } = useLocale();
   const summary = summarizeCredits(credits);
-  const net = netPayable(pendingCommissions, summary.pending);
+  const pendingTotal = pendingCredits ?? summary.pending;
+  const net = netPayable(pendingCommissions, pendingTotal);
 
   const columns = [
     ...(showSeller
@@ -143,7 +147,7 @@ function CommissionCreditsCard({
       <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
         <SummaryTile
           label={t("commissions.creditPending")}
-          value={money(summary.pending)}
+          value={money(pendingTotal)}
           caption={t("commissions.creditPendingCaption")}
           tone="warning"
           loading={loading}
@@ -207,6 +211,17 @@ function CommissionCreditsCard({
               </div>
             )}
           />
+          {creditsPagination && credits.length > 0 && (
+            <div className="px-3">
+              <Pagination
+                page={creditsPagination.page}
+                pageCount={creditsPagination.total_pages || 1}
+                total={creditsPagination.total}
+                perPage={creditsPagination.per_page}
+                onPageChange={onCreditsPageChange}
+              />
+            </div>
+          )}
         </div>
       )}
     </Card>
@@ -223,12 +238,20 @@ SummaryTile.propTypes = {
 
 CommissionCreditsCard.propTypes = {
   credits: PropTypes.arrayOf(PropTypes.object),
+  pendingCredits: PropTypes.number,
   pendingCommissions: PropTypes.number,
   showSeller: PropTypes.bool,
   isAdmin: PropTypes.bool,
   applying: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   onApply: PropTypes.func,
   loading: PropTypes.bool,
+  creditsPagination: PropTypes.shape({
+    page: PropTypes.number,
+    per_page: PropTypes.number,
+    total: PropTypes.number,
+    total_pages: PropTypes.number,
+  }),
+  onCreditsPageChange: PropTypes.func,
   className: PropTypes.string,
 };
 

@@ -156,6 +156,26 @@ const commissions = [
   },
 ];
 
+const commissionsResponse = (overrides = {}) => ({
+  commissions,
+  pagination: { page: 1, per_page: 20, total: 2, total_pages: 1 },
+  totals: {
+    commission: 45000,
+    amount: 900000,
+    paid: 20000,
+    pending: 25000,
+    paid_count: 1,
+    average_rate: 5,
+    net_pending: 25000,
+  },
+  sellers: [{ id: 3, name: "Ana Vendedora" }],
+  credits: [],
+  credits_pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 },
+  pending_credits: 0,
+  net_pending: 25000,
+  ...overrides,
+});
+
 function renderWorkspace(path = "/vendedor/clientes") {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -179,7 +199,7 @@ beforeEach(() => {
     collected_this_month: 188750,
   });
   paymentsApi.uploadReceipt.mockResolvedValue({});
-  commissionsApi.list.mockResolvedValue({ commissions });
+  commissionsApi.list.mockResolvedValue(commissionsResponse());
   reportsApi.downloadUserBalancePDF.mockResolvedValue(new Blob(["pdf"]));
 });
 
@@ -399,12 +419,14 @@ describe("Seller workspace commissions", () => {
   });
 
   it("shows the origin chips and the acceptance score KPI", async () => {
-    commissionsApi.list.mockResolvedValueOnce({
-      commissions: [
-        { ...commissions[0], origin: "referral" },
-        { ...commissions[1], origin: "historical" },
-      ],
-    });
+    commissionsApi.list.mockResolvedValueOnce(
+      commissionsResponse({
+        commissions: [
+          { ...commissions[0], origin: "referral" },
+          { ...commissions[1], origin: "historical" },
+        ],
+      })
+    );
 
     renderWorkspace("/vendedor/comisiones");
 
@@ -417,19 +439,22 @@ describe("Seller workspace commissions", () => {
   });
 
   it("shows the pending commission credit read-only with the net payable", async () => {
-    commissionsApi.list.mockResolvedValueOnce({
-      commissions,
-      credits: [
-        {
-          id: 9,
-          seller: "Ana Vendedora",
-          contract_id: 16,
-          amount: 25000,
-          status: "pending",
-          created_at: "2026-11-10T00:00:00Z",
-        },
-      ],
-    });
+    commissionsApi.list.mockResolvedValueOnce(
+      commissionsResponse({
+        credits: [
+          {
+            id: 9,
+            seller: "Ana Vendedora",
+            contract_id: 16,
+            amount: 25000,
+            status: "pending",
+            created_at: "2026-11-10T00:00:00Z",
+          },
+        ],
+        credits_pagination: { page: 1, per_page: 20, total: 1, total_pages: 1 },
+        pending_credits: 25000,
+      })
+    );
 
     renderWorkspace("/vendedor/comisiones");
 
@@ -451,6 +476,176 @@ describe("Seller workspace commissions", () => {
     expect(
       await screen.findByRole("alert")
     ).toHaveTextContent("We couldn't load your commissions");
+  });
+
+  it("reads the KPIs from the server totals when the page holds one commission", async () => {
+    commissionsApi.list.mockResolvedValueOnce(
+      commissionsResponse({
+        commissions: [commissions[0]],
+        pagination: { page: 1, per_page: 20, total: 2, total_pages: 2 },
+      })
+    );
+
+    renderWorkspace("/vendedor/comisiones");
+
+    expect(
+      await screen.findByText("2 commissions · 5.0% on approved contracts")
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("L 45,000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("L 20,000").length).toBeGreaterThan(0);
+  });
+
+  it("requests the next page and keeps the totals unchanged", async () => {
+    commissionsApi.list.mockImplementation(async (_start, _end, options = {}) =>
+      commissionsResponse({
+        commissions: [commissions[options.page === 2 ? 1 : 0]],
+        pagination: {
+          page: options.page || 1,
+          per_page: 20,
+          total: 2,
+          total_pages: 2,
+        },
+      })
+    );
+
+    renderWorkspace("/vendedor/comisiones");
+
+    await screen.findByText("2 commissions · 5.0% on approved contracts");
+    expect(await screen.findAllByText("Milton Perez")).not.toHaveLength(0);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Next page" }).at(-1));
+
+    await waitFor(() =>
+      expect(commissionsApi.list).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ page: 2, perPage: 20 })
+      )
+    );
+    expect(await screen.findAllByText("Antonio Lopez")).not.toHaveLength(0);
+    expect(screen.queryAllByText("Milton Perez")).toHaveLength(0);
+    expect(screen.getAllByText("L 45,000").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("2 commissions · 5.0% on approved contracts")
+    ).toBeInTheDocument();
+  });
+
+  it("pages the credits card and uses the server pending credits total", async () => {
+    commissionsApi.list.mockImplementation(async (_start, _end, options = {}) =>
+      commissionsResponse({
+        credits: [
+          {
+            id: options.creditsPage === 2 ? 10 : 9,
+            seller: "Ana Vendedora",
+            contract_id: options.creditsPage === 2 ? 99 : 16,
+            amount: 25000,
+            status: "pending",
+            created_at: "2026-11-10T00:00:00Z",
+          },
+        ],
+        credits_pagination: {
+          page: options.creditsPage || 1,
+          per_page: 20,
+          total: 25,
+          total_pages: 2,
+        },
+        pending_credits: 40000,
+      })
+    );
+
+    renderWorkspace("/vendedor/comisiones");
+
+    expect(await screen.findByText("L 40,000")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Next page" })[0]);
+
+    await waitFor(() =>
+      expect(commissionsApi.list).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ creditsPage: 2, creditsPerPage: 20 })
+      )
+    );
+    expect((await screen.findAllByText("#99")).length).toBeGreaterThan(0);
+    expect(screen.getByText("L 40,000")).toBeInTheDocument();
+  });
+
+  it("sends the search term to the server and keeps the returned page unfiltered", async () => {
+    renderWorkspace("/vendedor/comisiones");
+
+    await screen.findAllByText("Milton Perez");
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "zzz" },
+    });
+
+    await waitFor(() =>
+      expect(commissionsApi.list).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ page: 1, search: "zzz" })
+      )
+    );
+    expect((await screen.findAllByText("Milton Perez")).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Antonio Lopez").length
+    ).toBeGreaterThan(0);
+  });
+
+  it("shows the period total in the commissions tab label", async () => {
+    commissionsApi.list.mockResolvedValueOnce(
+      commissionsResponse({
+        commissions: [commissions[0]],
+        pagination: {
+          page: 1,
+          per_page: 20,
+          total: 1,
+          total_pages: 1,
+          period_total: 9,
+        },
+      })
+    );
+
+    renderWorkspace("/vendedor/comisiones");
+
+    expect(
+      await screen.findByRole("tab", { name: /Commissions\s*9/ })
+    ).toBeInTheDocument();
+  });
+
+  it("returns the commission list to page 1 when the search changes", async () => {
+    commissionsApi.list.mockImplementation(async (_start, _end, options = {}) =>
+      commissionsResponse({
+        pagination: {
+          page: options.page || 1,
+          per_page: 20,
+          total: 40,
+          total_pages: 2,
+        },
+      })
+    );
+
+    renderWorkspace("/vendedor/comisiones");
+
+    await screen.findByText("40 commissions · 5.0% on approved contracts");
+    fireEvent.click(screen.getAllByRole("button", { name: "Next page" }).at(-1));
+    await waitFor(() =>
+      expect(commissionsApi.list).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ page: 2 })
+      )
+    );
+
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "Milton" },
+    });
+
+    await waitFor(() =>
+      expect(commissionsApi.list).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ page: 1, search: "Milton" })
+      )
+    );
   });
 });
 

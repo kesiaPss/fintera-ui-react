@@ -2712,6 +2712,13 @@
     "previous": "Previous page",
     "next": "Next page"
   },
+  "projectSelect": {
+    "search": "Search projects",
+    "loadMore": "Load more",
+    "empty": "No projects found",
+    "loadError": "Could not load projects",
+    "unknownProject": "Unknown project"
+  },
   "score": {
     "high": "High",
     "medium": "Medium",
