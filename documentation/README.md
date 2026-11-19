@@ -32,6 +32,7 @@ Technical documentation for the FinteraUI frontend.
 - [Pagination](features/pagination.md)
 - [Bank/cash reservation](features/bank-cash-reservation.md)
 - [Project media](features/project-media.md)
+- [Project CSV import](features/project-import.md)
 - [Project publishing](features/project-publishing.md)
 - [Project cards](features/project-cards.md)
 - [Historical clients](features/historical-clients.md)

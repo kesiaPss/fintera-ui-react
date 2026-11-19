@@ -103,6 +103,95 @@ export const TARGET_FIELDS = [
 
 export const REQUIRED_FIELDS = TARGET_FIELDS.filter((field) => field.required);
 
+const FIELDS_BY_KEY = new Map(TARGET_FIELDS.map((field) => [field.key, field]));
+
+// Keep these headers aligned with ProjectCSVCanonicalHeaders in FinteraAPI.
+// Every header is an alias accepted by both parsers.
+export const TEMPLATE_HEADERS = {
+  es: [
+    "nombre",
+    "codigo",
+    "direccion",
+    "ciudad",
+    "precio_m2",
+    "lotes",
+    "unidad",
+    "tipo",
+    "fecha_entrega",
+    "descripcion",
+    "tasa_interes",
+    "comision_directa",
+    "comision_banco",
+    "comision_contado",
+  ],
+  en: [
+    "name",
+    "code",
+    "address",
+    "city",
+    "price_per_square_unit",
+    "lot_count",
+    "measurement_unit",
+    "project_type",
+    "delivery_date",
+    "description",
+    "interest_rate",
+    "commission_rate_direct",
+    "commission_rate_bank",
+    "commission_rate_cash",
+  ],
+};
+
+const TEMPLATE_SAMPLE = {
+  es: [
+    "Proyecto Ejemplo",
+    "EJ-001",
+    "Calle 50, Ciudad de Panamá",
+    "Ciudad de Panamá",
+    "1200",
+    "10",
+    "m2",
+    "residential",
+    "2027-06-30",
+    "Proyecto de ejemplo; reemplaza o elimina esta fila.",
+    "0",
+    "0",
+    "0",
+    "0",
+  ],
+  en: [
+    "Example Project",
+    "EX-001",
+    "50th Street, Panama City",
+    "Panama City",
+    "1200",
+    "10",
+    "m2",
+    "residential",
+    "2027-06-30",
+    "Example project; replace or delete this row.",
+    "0",
+    "0",
+    "0",
+    "0",
+  ],
+};
+
+const MEASUREMENT_UNITS = new Set([
+  "",
+  "m2",
+  "m²",
+  "ft2",
+  "ft²",
+  "vara2",
+  "varas2",
+  "varas²",
+]);
+
+const NUMBER_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+const INTEGER_PATTERN = /^[+-]?\d+$/;
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 export function normalizeHeader(header) {
   return String(header ?? "")
     .replace(/^\uFEFF/, "")
@@ -119,8 +208,9 @@ TARGET_FIELDS.forEach((field) => {
   field.aliases.forEach((alias) => FIELD_BY_HEADER.set(normalizeHeader(alias), field));
 });
 
-export function parseCsvRows(text) {
+export function parseCsvRows(text, delimiter = ",") {
   const source = String(text ?? "").replace(/^\uFEFF/, "");
+  const separator = delimiter || ",";
   const rows = [];
   let row = [];
   let value = "";
@@ -149,7 +239,7 @@ export function parseCsvRows(text) {
       continue;
     }
 
-    if (!quoted && char === ",") {
+    if (!quoted && char === separator) {
       pushValue();
       continue;
     }
@@ -172,8 +262,137 @@ export function parseCsvRows(text) {
   return rows;
 }
 
-export function analyzeCsv(text) {
-  const rows = parseCsvRows(text);
+export function detectCsvDelimiter(text) {
+  const candidates = [",", ";"].map((delimiter) => {
+    const rows = parseCsvRows(text, delimiter);
+    const headers = (rows[0] ?? []).map((header) => header.trim());
+    const mapped = headers.filter((header) =>
+      FIELD_BY_HEADER.has(normalizeHeader(header))
+    ).length;
+    return { delimiter, rows, mapped };
+  });
+
+  return candidates.reduce(
+    (best, candidate) => (candidate.mapped > best.mapped ? candidate : best),
+    candidates[0]
+  );
+}
+
+const parseNumber = (value) => {
+  const text = String(value ?? "").trim().replace(/%$/, "").trim();
+  if (!NUMBER_PATTERN.test(text)) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+};
+
+const parseInteger = (value) => {
+  const text = String(value ?? "").trim();
+  if (!INTEGER_PATTERN.test(text)) return null;
+  const number = Number(text);
+  return Number.isSafeInteger(number) ? number : null;
+};
+
+const isIsoDate = (value) => {
+  const match = DATE_PATTERN.exec(String(value ?? "").trim());
+  if (!match) return false;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return (
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day)
+  );
+};
+
+const issue = (code, reasonKey, field) => ({ code, reasonKey, field });
+
+const validateRow = (cells, mapping) => {
+  const indexes = new Map();
+  mapping.forEach(({ field }, index) => {
+    if (field) indexes.set(field.key, index);
+  });
+
+  const value = (key) => {
+    const index = indexes.get(key);
+    if (index === undefined) return "";
+    return String(cells[index] ?? "").trim();
+  };
+  const has = (key) => indexes.has(key);
+
+  const issues = [];
+
+  REQUIRED_FIELDS.forEach((field) => {
+    if (has(field.key) && value(field.key) === "") {
+      issues.push(issue("required", "projectsPage.rowIssueRequired", field));
+    }
+  });
+
+  if (has("price_per_square_unit") && value("price_per_square_unit") !== "") {
+    const price = parseNumber(value("price_per_square_unit"));
+    if (price === null) {
+      issues.push(
+        issue("number", "projectsPage.rowIssueNumber", FIELDS_BY_KEY.get("price_per_square_unit"))
+      );
+    } else if (price < 0) {
+      issues.push(
+        issue("negative", "projectsPage.rowIssueNegative", FIELDS_BY_KEY.get("price_per_square_unit"))
+      );
+    }
+  }
+
+  if (has("lot_count") && value("lot_count") !== "") {
+    const lots = parseInteger(value("lot_count"));
+    if (lots === null) {
+      issues.push(
+        issue("integer", "projectsPage.rowIssueInteger", FIELDS_BY_KEY.get("lot_count"))
+      );
+    } else if (lots < 0) {
+      issues.push(
+        issue("negative", "projectsPage.rowIssueNegative", FIELDS_BY_KEY.get("lot_count"))
+      );
+    }
+  }
+
+  if (has("delivery_date") && value("delivery_date") !== "") {
+    if (!isIsoDate(value("delivery_date"))) {
+      issues.push(
+        issue("date", "projectsPage.rowIssueDate", FIELDS_BY_KEY.get("delivery_date"))
+      );
+    }
+  }
+
+  if (has("measurement_unit") && value("measurement_unit") !== "") {
+    if (!MEASUREMENT_UNITS.has(value("measurement_unit").toLowerCase())) {
+      issues.push(
+        issue("unit", "projectsPage.rowIssueUnit", FIELDS_BY_KEY.get("measurement_unit"))
+      );
+    }
+  }
+
+  [
+    "interest_rate",
+    "commission_rate",
+    "commission_rate_direct",
+    "commission_rate_bank",
+    "commission_rate_cash",
+  ].forEach((key) => {
+    if (!has(key) || value(key) === "") return;
+    const rate = parseNumber(value(key));
+    if (rate === null) {
+      issues.push(issue("number", "projectsPage.rowIssueNumber", FIELDS_BY_KEY.get(key)));
+    } else if (rate < 0) {
+      issues.push(issue("negative", "projectsPage.rowIssueNegative", FIELDS_BY_KEY.get(key)));
+    }
+  });
+
+  return issues;
+};
+
+export function analyzeCsv(text, { delimiter } = {}) {
+  const detected = delimiter
+    ? { delimiter, rows: parseCsvRows(text, delimiter) }
+    : detectCsvDelimiter(text);
+  const { rows } = detected;
   const headers = (rows[0] ?? []).map((header) => header.trim());
 
   if (!headers.some(Boolean)) {
@@ -192,13 +411,121 @@ export function analyzeCsv(text) {
     (field) => !mappedKeys.has(field.key)
   );
 
-  const rowCount = rows
+  const mappedIndexes = mapping
+    .map(({ field }, index) => (field ? index : -1))
+    .filter((index) => index >= 0);
+
+  const dataRows = rows
     .slice(1)
-    .filter((cells) => cells.some((cell) => cell.trim().length > 0)).length;
+    .map((cells, index) => ({ cells, row: index + 2 }))
+    .filter(({ cells }) => cells.some((cell) => cell.trim().length > 0))
+    .filter(({ cells }) =>
+      mappedIndexes.some((index) => String(cells[index] ?? "").trim().length > 0)
+    );
+
+  const rowIssues = [];
+  dataRows.forEach(({ cells, row }) => {
+    const issues = missingRequired.length > 0 ? [] : validateRow(cells, mapping);
+    if (issues.length > 0) rowIssues.push({ row, issues });
+  });
 
   return {
+    delimiter: detected.delimiter,
     mapping,
-    rowCount,
+    rowCount: dataRows.length,
+    validRowCount: dataRows.length - rowIssues.length,
+    rowIssues,
     missingRequired,
   };
 }
+
+export const escapeCsv = (value) => {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
+
+export const toCsv = (rows) =>
+  rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+
+export function buildProjectTemplate(locale = "es") {
+  const language = TEMPLATE_HEADERS[locale] ? locale : "es";
+  return `\uFEFF${toCsv([
+    TEMPLATE_HEADERS[language],
+    TEMPLATE_SAMPLE[language],
+  ])}\n`;
+}
+
+const downloadTextFile = (filename, content) => {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+export const downloadProjectTemplate = (locale = "es") => {
+  downloadTextFile(
+    locale === "en" ? "projects-template.csv" : "plantilla-proyectos.csv",
+    buildProjectTemplate(locale)
+  );
+};
+
+export const downloadProjectRowErrors = (errors, locale = "es") => {
+  const rows = [
+    locale === "en" ? ["row", "reason"] : ["fila", "motivo"],
+    ...errors.map((error) => [error.row, error.message]),
+  ];
+  downloadTextFile(
+    locale === "en"
+      ? "project-import-errors.csv"
+      : "errores-importacion-proyectos.csv",
+    `\uFEFF${toCsv(rows)}\n`
+  );
+};
+
+const readFileBuffer = (file) => {
+  if (typeof file.arrayBuffer === "function") return file.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+export async function readCsvText(file) {
+  if (typeof TextDecoder === "undefined") {
+    return { text: await file.text(), encoding: "utf-8" };
+  }
+
+  const buffer = await readFileBuffer(file);
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let text = new TextDecoder("utf-8").decode(bytes);
+  let encoding = "utf-8";
+
+  if (text.includes("\uFFFD")) {
+    try {
+      text = new TextDecoder("windows-1252").decode(bytes);
+      encoding = "windows-1252";
+    } catch {
+      // Keep the UTF-8 decoding when the legacy decoder is unavailable.
+    }
+  }
+
+  return { text, encoding };
+}
+
+export function normalizeCsvFile(file, text, delimiter) {
+  const content = `\uFEFF${toCsv(parseCsvRows(text, delimiter))}\n`;
+  return new File([content], file.name, { type: "text/csv" });
+}
+
+export const isCsvFile = (file) => {
+  if (!file) return false;
+  return /\.csv$/i.test(file.name) || file.type === "text/csv";
+};
