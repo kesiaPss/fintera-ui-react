@@ -10,6 +10,8 @@ export const TEMPLATE_HEADERS = [
   "email",
   "forma_pago",
   "estado_venta",
+  "tasa",
+  "comision",
 ];
 
 const TEMPLATE_SAMPLE = [
@@ -24,6 +26,8 @@ const TEMPLATE_SAMPLE = [
   "maria@example.com",
   "financiado",
   "en_cuotas",
+  "5",
+  "37500",
 ];
 
 export const CSV_FIELDS = [
@@ -71,6 +75,16 @@ export const CSV_FIELDS = [
     labelKey: "historical.saleDate",
     required: true,
     aliases: ["fecha_venta", "fecha de venta", "fecha", "sale_date", "date"],
+  },
+  {
+    key: "rate",
+    labelKey: "historical.commissionRate",
+    aliases: ["tasa", "rate", "porcentaje", "commission_rate"],
+  },
+  {
+    key: "commission_amount",
+    labelKey: "historical.commissionAmount",
+    aliases: ["comision", "commission", "commission_amount", "monto_comision"],
   },
 ];
 

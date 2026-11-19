@@ -721,7 +721,9 @@ function SellerWorkspace() {
     },
   ];
 
-  if (isAdmin) {
+  const hasHistoricalClients = clients.some((client) => client.isHistorical);
+
+  if (hasHistoricalClients) {
     clientColumns.push({
       key: "actions",
       header: t("common.actions"),
@@ -737,22 +739,35 @@ function SellerWorkspace() {
             </span>
           );
         }
+        const items = [];
+        if (row.id) {
+          items.push({
+            label: t("common.edit"),
+            onSelect: () =>
+              navigate(`/vendedor/clientes/historicos/${row.id}`, {
+                state: { from: location.pathname },
+              }),
+          });
+        }
+        if (isAdmin) {
+          items.push(
+            {
+              label: t("historical.validate"),
+              onSelect: () => handleValidation(row, "validate"),
+            },
+            {
+              label: t("historical.reject"),
+              tone: "danger",
+              onSelect: () => handleValidation(row, "reject"),
+            }
+          );
+        }
         return (
           <Menu
             label={t("common.actions")}
             align="right"
             icon={<FontAwesomeIcon icon={faEllipsisVertical} aria-hidden="true" />}
-            items={[
-              {
-                label: t("historical.validate"),
-                onSelect: () => handleValidation(row, "validate"),
-              },
-              {
-                label: t("historical.reject"),
-                tone: "danger",
-                onSelect: () => handleValidation(row, "reject"),
-              },
-            ]}
+            items={items}
           />
         );
       },
@@ -1046,24 +1061,37 @@ function SellerWorkspace() {
               })
         }
         action={
-          isAdmin &&
-          row.isHistorical &&
-          row.validationStatus === "pending" ? (
-            <div className="flex gap-1.5">
+          row.isHistorical && row.validationStatus === "pending" ? (
+            <div className="flex flex-wrap gap-1.5">
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => handleValidation(row, "validate")}
+                onClick={() =>
+                  navigate(`/vendedor/clientes/historicos/${row.id}`, {
+                    state: { from: location.pathname },
+                  })
+                }
               >
-                {t("historical.validate")}
+                {t("common.edit")}
               </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => handleValidation(row, "reject")}
-              >
-                {t("historical.reject")}
-              </Button>
+              {isAdmin && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleValidation(row, "validate")}
+                  >
+                    {t("historical.validate")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleValidation(row, "reject")}
+                  >
+                    {t("historical.reject")}
+                  </Button>
+                </>
+              )}
             </div>
           ) : undefined
         }

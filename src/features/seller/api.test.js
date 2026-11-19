@@ -67,14 +67,23 @@ describe("seller assignment endpoints", () => {
 describe("historical sales endpoints", () => {
   it("lists, creates, updates, validates and rejects", async () => {
     await sellerApi.listHistoricalSales({ status: "pending" });
+    await sellerApi.getHistoricalSale(3);
     await sellerApi.createHistoricalSale({ client_name: "Ana" });
     await sellerApi.updateHistoricalSale(3, { client_name: "Ana" });
     await sellerApi.validateHistoricalSale(3);
     await sellerApi.rejectHistoricalSale(4);
 
-    expect(apiClient.get).toHaveBeenCalledWith("/api/v1/historical_sales", {
-      params: { status: "pending" },
-    });
+    expect(apiClient.get).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/historical_sales",
+      {
+        params: { status: "pending" },
+      }
+    );
+    expect(apiClient.get).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/historical_sales/3"
+    );
     expect(apiClient.post).toHaveBeenNthCalledWith(
       1,
       "/api/v1/historical_sales",

@@ -12,7 +12,7 @@ Each project stores three rates:
 
 The commission is calculated when the contract is approved and stored on the contract. Later rate changes only apply to new contracts.
 
-Admins open **Configure rates** from the Commissions page. The rules sheet explains that the rate comes from the project, that the commission is computed on approval, and that per-seller exceptions are not available in this version: the project rates apply to every seller.
+Admins open **Configure rates** from the Commissions page. The rules sheet sets the global default and the unassigned rate, and adds per-seller exceptions. A per-seller exception overrides the project/global rate for that seller. Historical records use the seller exception when present, otherwise the global default.
 
 ## Admin commissions page
 
@@ -24,6 +24,18 @@ Open **Commissions** from the admin menu. The page has:
 - **Export** to download the period as CSV.
 
 For a pending commission, **Pay** asks for confirmation and marks the commission as paid. It writes an audit entry and does **not** change the contract balance. Paid commissions show **View**, which opens a read-only detail dialog.
+
+## Historical clients to validate
+
+The Commissions page has a **Pending validation** tab with the number of historical records waiting for review. It shows pending, validated and rejected totals; filters by seller, status and text; and a table with the client, seller, sale date, price, rate, commission, evidence and status.
+
+From each pending row an admin can:
+
+- **Validate** the record. It leaves the pending list and stays a historical sale; it creates no reservation and blocks no lot.
+- **Reject** the record after confirmation.
+- **Edit** the client, sale, rate or commission amount before validating.
+
+Sellers can edit their own pending records from **My clients**; validated records are read-only for them.
 
 ## Seller commissions
 

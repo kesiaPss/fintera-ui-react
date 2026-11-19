@@ -17,6 +17,7 @@ Use the search box to filter by client name, phone, or identity. The list is pag
 ## Adding clients
 
 - **Add client** opens the historical client form for a client and sale that happened before you started using Fintera. The record appears as **Historical · pending validation** until an admin validates it.
+- **Edit** on a pending historical row lets you correct the client data, rate or commission amount before validation.
 - **Import CSV** loads several historical clients at once from a spreadsheet.
 - For a new sale, create the customer inside the reservation wizard instead.
 

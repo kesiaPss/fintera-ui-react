@@ -93,6 +93,14 @@ export const appRoutes = [
           ),
         },
         {
+          path: "/vendedor/clientes/historicos/:id",
+          element: (
+            <SellerRoute>
+              <SellerHistoricalClient />
+            </SellerRoute>
+          ),
+        },
+        {
           path: "/vendedor/*",
           element: (
             <SellerRoute>
