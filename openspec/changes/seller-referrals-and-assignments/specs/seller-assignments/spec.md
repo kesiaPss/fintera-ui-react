@@ -2,10 +2,10 @@
 
 ### Requirement: Seller question in the reservation
 
-The reservation SHALL show the question "¿Un vendedor te atendió?" with the
-seller list, a search option and a "No me atendió nadie" option. The question
-SHALL NOT block advancing: when it is empty or "No me atendió nadie", the
-reservation SHALL be assigned automatically.
+Customer and administrator reservations SHALL show the question "¿Un vendedor
+te atendió?" with the seller list, a search option and a "No me atendió nadie"
+option. The question SHALL NOT block advancing: when it is empty or "No me
+atendió nadie", the reservation SHALL be assigned automatically.
 
 #### Scenario: Client picks a seller
 
@@ -23,6 +23,26 @@ reservation SHALL be assigned automatically.
 
 - **WHEN** the user chooses "Buscar otro vendedor"
 - **THEN** the list can be filtered to find a seller outside the suggested ones
+
+### Requirement: Seller-created reservations
+
+Reservations created by a seller from the back office SHALL be assigned to that
+seller and SHALL start `accepted`, without showing the seller question and
+without an acceptance window. The seller question SHALL only be shown to
+administrators and customers.
+
+#### Scenario: Seller creates a reservation
+
+- **WHEN** a seller creates a reservation
+- **THEN** the reservation is assigned to that seller
+- **AND** the assignment origin is `manual`
+- **AND** the assignment is accepted immediately
+- **AND** the reservation does not ask which seller assisted the client
+
+#### Scenario: Seller cannot assign another seller
+
+- **WHEN** a seller sends a different `seller_id` while creating a reservation
+- **THEN** the reservation is still assigned to the authenticated seller
 
 ### Requirement: Assignment acceptance window
 

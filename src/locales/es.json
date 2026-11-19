@@ -2990,6 +2990,7 @@
     "noOneMeta": "Asignar automáticamente",
     "assignedSeller": "VENDEDOR ASIGNADO",
     "assignedSellerHint": "Te contactará para darte seguimiento",
+    "selfSellerHint": "Esta reserva quedará a tu nombre",
     "automaticSeller": "Asignación automática",
     "automaticSellerHint": "Te asignaremos un vendedor disponible",
     "noChargeNote": "Tasa 0% · Sin cargos adicionales",
