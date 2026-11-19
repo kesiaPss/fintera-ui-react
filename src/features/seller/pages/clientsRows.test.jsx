@@ -218,6 +218,29 @@ describe("historical rows in seller clients (21b)", () => {
     expect(screen.getByRole("menuitem", { name: "Validate" })).toBeInTheDocument();
   });
 
+  it("merges a historical client with their contract when they share a user", async () => {
+    sellerApi.listHistoricalSales.mockResolvedValue({
+      historical_sales: [
+        {
+          id: 92,
+          full_name: "Milton Perez",
+          identity: "0801-1990-00001",
+          client_user_id: 7,
+          sale_price: 300000,
+          sale_date: "2023-06-10",
+          validation_status: "pending",
+        },
+      ],
+    });
+
+    renderWorkspace();
+
+    await screen.findAllByText("Milton Perez");
+    expect(screen.getAllByText("HISTORICAL").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("L 500,000").length).toBeGreaterThan(0);
+    expect(screen.queryByText("L 300,000")).toBeNull();
+  });
+
   it("opens the CSV import sheet from the clients toolbar", async () => {
     renderWorkspace();
 

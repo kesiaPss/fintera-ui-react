@@ -13,7 +13,7 @@ Una **reserva** aparta un lote para un cliente antes de completar la venta.
 
 Los vendedores y administradores inician una reserva desde un lote o desde **Nueva reserva** en **Mi día** del vendedor.
 
-1. **Cliente** — busca un cliente existente o crea uno con nombre, teléfono, identidad, RTN y correo.
+1. **Cliente** — busca un cliente existente o crea uno con nombre, teléfono, identidad, RTN y correo. Los clientes históricos aparecen en la búsqueda con un chip **HISTÓRICO**; al seleccionar uno se reutiliza su cuenta de cliente.
 2. **Plan de financiamiento** — elige directo, banco o efectivo; ingresa el plazo, la fecha máxima de pago, el monto de reserva, el pago inicial y las notas según corresponda.
 3. **Confirmar** — revisa el resumen y adjunta documentos si es necesario.
 

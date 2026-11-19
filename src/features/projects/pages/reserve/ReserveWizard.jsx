@@ -1,6 +1,7 @@
 import { useContext, useState, useEffect, useCallback, useMemo } from "react";
 import PropTypes from "prop-types";
 import { usersApi } from "../../../users/api";
+import { displayUserEmail } from "../../../users/utils/historicalEmail";
 import MessageEditor from "@/shared/editor/MessageEditor";
 import AuthContext from "@/contexts/AuthContext";
 import debounce from "lodash.debounce";
@@ -502,11 +503,18 @@ function ReserveWizard({
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="truncate text-body font-bold text-ink">
-                                      {u.full_name}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <p className="truncate text-body font-bold text-ink">
+                                        {u.full_name}
+                                      </p>
+                                      {u.historical_client && (
+                                        <Chip tone="neutral" className="uppercase">
+                                          {t("users.historical")}
+                                        </Chip>
+                                      )}
+                                    </div>
                                     <p className="truncate text-micro text-ink-3">
-                                      {u.email} · {u.phone}
+                                      {displayUserEmail(u, t)} · {u.phone}
                                     </p>
                                   </div>
                                   {(currentUser?.role === "admin" ||
@@ -560,11 +568,18 @@ function ReserveWizard({
                       <div className="rounded-card border border-line bg-surface-2 p-5">
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="truncate text-body-lg font-bold text-ink">
-                              {selectedUser.full_name}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="truncate text-body-lg font-bold text-ink">
+                                {selectedUser.full_name}
+                              </p>
+                              {selectedUser.historical_client && (
+                                <Chip tone="neutral" className="uppercase">
+                                  {t("users.historical")}
+                                </Chip>
+                              )}
+                            </div>
                             <p className="truncate text-body text-ink-3">
-                              {selectedUser.email}
+                              {displayUserEmail(selectedUser, t)}
                             </p>
                           </div>
                           <Button

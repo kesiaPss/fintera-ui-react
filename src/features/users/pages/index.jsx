@@ -45,6 +45,10 @@ import {
 } from "../../../shared/utils/avatarUtils";
 import { usersApi } from "../api";
 import RightSidebar from "../components/RightSidebar";
+import {
+  displayUserEmail,
+  isHistoricalPlaceholderEmail,
+} from "../utils/historicalEmail";
 
 const PER_PAGE = 12;
 
@@ -94,6 +98,7 @@ function Users() {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [historicalFilter, setHistoricalFilter] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -109,6 +114,7 @@ function Users() {
     admin: null,
     seller: null,
     user: null,
+    historical: null,
   });
 
   const location = useLocation();
@@ -124,9 +130,10 @@ function Users() {
     const term = searchTerm.trim();
     if (term) next.search_term = term;
     if (roleFilter) next.role = roleFilter;
+    if (historicalFilter) next.historical = "1";
     if (myClients) next.my_clients = "1";
     return next;
-  }, [searchTerm, roleFilter, showAll, myClients]);
+  }, [searchTerm, roleFilter, historicalFilter, showAll, myClients]);
 
   const refreshUsers = useCallback(() => {
     setRefreshTrigger((value) => value + 1);
@@ -179,6 +186,7 @@ function Users() {
           admin: Number(data?.admin ?? 0),
           seller: Number(data?.seller ?? 0),
           user: Number(data?.user ?? 0),
+          historical: Number(data?.historical ?? 0),
         });
       })
       .catch(() => {
@@ -198,13 +206,15 @@ function Users() {
           loadTotal({ role: "admin" }),
           loadTotal({ role: "seller" }),
           loadTotal({ role: "user" }),
-        ]).then(([totalCount, adminCount, sellerCount, userCount]) => {
+          loadTotal({ historical: "1" }),
+        ]).then(([totalCount, adminCount, sellerCount, userCount, historicalCount]) => {
           if (!active) return;
           setCounts({
             total: totalCount,
             admin: adminCount,
             seller: sellerCount,
             user: userCount,
+            historical: historicalCount,
           });
         });
       });
@@ -233,7 +243,13 @@ function Users() {
   };
 
   const handleRoleChange = useCallback((value) => {
-    setRoleFilter(value);
+    if (value === "historical") {
+      setHistoricalFilter(true);
+      setRoleFilter("");
+    } else {
+      setHistoricalFilter(false);
+      setRoleFilter(value);
+    }
     setPage(1);
   }, []);
 
@@ -389,11 +405,15 @@ function Users() {
           ),
           onSelect: () => handleToggleStatus(user),
         },
-        {
-          label: t("users.invite"),
-          icon: <FontAwesomeIcon icon={faPaperPlane} className="w-3.5" />,
-          onSelect: () => handleResendConfirmation(user),
-        },
+        ...(isHistoricalPlaceholderEmail(user)
+          ? []
+          : [
+              {
+                label: t("users.invite"),
+                icon: <FontAwesomeIcon icon={faPaperPlane} className="w-3.5" />,
+                onSelect: () => handleResendConfirmation(user),
+              },
+            ]),
         ...(currentUser?.role === "admin"
           ? [
               {
@@ -439,11 +459,18 @@ function Users() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-body font-semibold text-ink">
-              {user.full_name || "—"}
-            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="truncate text-body font-semibold text-ink">
+                {user.full_name || "—"}
+              </p>
+              {user.historical_client && (
+                <Chip tone="neutral" className="uppercase">
+                  {t("users.historical")}
+                </Chip>
+              )}
+            </div>
             <p className="truncate text-micro text-ink-3">
-              {user.email || "—"}
+              {displayUserEmail(user, t)}
             </p>
             {lastAccess && (
               <p className="truncate text-micro text-ink-3">
@@ -554,6 +581,11 @@ function Users() {
         count: counts.seller,
       },
       { value: "user", label: t("users.filterClients"), count: counts.user },
+      {
+        value: "historical",
+        label: t("users.filterHistorical"),
+        count: counts.historical,
+      },
     ],
     [counts, t]
   );
@@ -570,7 +602,7 @@ function Users() {
         ].join(" · ")
       : t("users.manageSystemUsers");
 
-  const hasFilters = Boolean(searchTerm || roleFilter || showAll);
+  const hasFilters = Boolean(searchTerm || roleFilter || historicalFilter || showAll);
 
   const pageVariants = {
     initial: { opacity: 0, y: 10 },
@@ -637,7 +669,10 @@ function Users() {
 
           <div className="flex flex-wrap gap-1.5">
             {roleChips.map((chip) => {
-              const active = roleFilter === chip.value;
+              const active =
+                chip.value === "historical"
+                  ? historicalFilter
+                  : !historicalFilter && roleFilter === chip.value;
               return (
                 <button
                   key={chip.value || "all"}

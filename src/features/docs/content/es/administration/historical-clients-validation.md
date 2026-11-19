@@ -15,6 +15,17 @@ La pestaña tiene cuatro tarjetas de resumen:
 - **Rechazados** — registros rechazados por inválidos.
 - **Total** — todos los históricos que coinciden con el filtro actual de vendedor/búsqueda.
 
+## Históricos en Usuarios y reservas
+
+Cada cliente histórico queda vinculado a una cuenta de cliente real (`role = user`). Esto significa que:
+
+- El cliente aparece en **Usuarios → Clientes** con un chip **HISTÓRICO**.
+- El filtro **Históricos** muestra solo los clientes creados desde ventas migradas.
+- El cliente se puede buscar y seleccionar en el asistente de reserva como cliente existente.
+- Si el registro histórico no tenía correo, la cuenta usa un correo no entregable. La interfaz muestra **Sin correo** y oculta **Invitar / Reenviar confirmación** hasta que un administrador agregue un correo real desde la edición del usuario.
+
+La cuenta se crea al guardar o importar el registro histórico. Los registros existentes se vinculan con el backfill del despliegue. Validar no crea la cuenta ni la modifica.
+
 ## Filtros
 
 - **Buscar** coincide con el nombre del cliente, identidad, teléfono o proyecto.

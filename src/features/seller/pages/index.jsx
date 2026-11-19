@@ -295,7 +295,10 @@ function SellerWorkspace() {
         return {
           key: `historical-${sale.id ?? sale.guid ?? sale.full_name}`,
           id: sale.id,
+          historicalSaleId: sale.id,
+          clientUserId: sale.client_user_id ?? null,
           isHistorical: true,
+          hasHistorical: true,
           name:
             sale.full_name || sale.client_name || t("seller.unnamedClient"),
           phone: sale.phone || "—",
@@ -319,7 +322,11 @@ function SellerWorkspace() {
     const unnamed = t("seller.unnamedClient");
     const map = new Map();
     for (const contract of contracts) {
-      const key = contract.applicant_user_id || contract.applicant_name;
+      const key = contract.applicant_user_id
+        ? `user-${contract.applicant_user_id}`
+        : contract.applicant_name
+          ? `name-${contract.applicant_name}`
+          : "";
       if (!key) continue;
       const current = map.get(key) || {
         key,
@@ -332,6 +339,7 @@ function SellerWorkspace() {
         amount: 0,
         last: contract.created_at,
         nextPayment: null,
+        hasHistorical: false,
       };
       current.contracts += 1;
       current.amount += Number(contract.amount || 0);
@@ -356,9 +364,29 @@ function SellerWorkspace() {
       }
       map.set(key, current);
     }
-    return [...map.values(), ...historicalClients].sort(
-      (a, b) => b.amount - a.amount
-    );
+
+    for (const historical of historicalClients) {
+      const key = historical.clientUserId
+        ? `user-${historical.clientUserId}`
+        : historical.key;
+      const current = map.get(key);
+      if (!current) {
+        map.set(key, historical);
+        continue;
+      }
+      current.hasHistorical = true;
+      current.historicalSaleId = historical.historicalSaleId;
+      current.validationStatus = historical.validationStatus;
+      if (!current.phone || current.phone === "—") {
+        current.phone = historical.phone;
+      }
+      if (!current.identity || current.identity === "—") {
+        current.identity = historical.identity;
+      }
+      map.set(key, current);
+    }
+
+    return [...map.values()].sort((a, b) => b.amount - a.amount);
   }, [contracts, historicalClients, t]);
 
   const searchTerm = search.trim().toLowerCase();
@@ -617,13 +645,14 @@ function SellerWorkspace() {
   };
 
   const handleValidation = async (row, action) => {
-    if (!row.id) return;
-    setValidating(`${action}-${row.id}`);
+    const id = row.historicalSaleId || row.id;
+    if (!id) return;
+    setValidating(`${action}-${id}`);
     try {
       if (action === "validate") {
-        await sellerApi.validateHistoricalSale(row.id);
+        await sellerApi.validateHistoricalSale(id);
       } else {
-        await sellerApi.rejectHistoricalSale(row.id);
+        await sellerApi.rejectHistoricalSale(id);
       }
       showToast(
         t(
@@ -649,7 +678,7 @@ function SellerWorkspace() {
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="font-semibold text-ink">{row.name}</p>
-            {row.isHistorical && (
+            {row.hasHistorical && (
               <Chip className="uppercase">{t("historical.chip")}</Chip>
             )}
           </div>
@@ -721,7 +750,7 @@ function SellerWorkspace() {
     },
   ];
 
-  const hasHistoricalClients = clients.some((client) => client.isHistorical);
+  const hasHistoricalClients = clients.some((client) => client.hasHistorical);
 
   if (hasHistoricalClients) {
     clientColumns.push({
@@ -729,10 +758,11 @@ function SellerWorkspace() {
       header: t("common.actions"),
       align: "right",
       render: (row) => {
-        if (!row.isHistorical || row.validationStatus !== "pending") {
+        if (!row.hasHistorical || row.validationStatus !== "pending") {
           return null;
         }
-        if (validating === `validate-${row.id}` || validating === `reject-${row.id}`) {
+        const saleId = row.historicalSaleId || row.id;
+        if (validating === `validate-${saleId}` || validating === `reject-${saleId}`) {
           return (
             <span className="text-micro font-semibold text-ink-3">
               {t("common.processing")}
@@ -740,11 +770,11 @@ function SellerWorkspace() {
           );
         }
         const items = [];
-        if (row.id) {
+        if (saleId) {
           items.push({
             label: t("common.edit"),
             onSelect: () =>
-              navigate(`/vendedor/clientes/historicos/${row.id}`, {
+              navigate(`/vendedor/clientes/historicos/${saleId}`, {
                 state: { from: location.pathname },
               }),
           });
@@ -1030,7 +1060,7 @@ function SellerWorkspace() {
         title={
           <span className="inline-flex flex-wrap items-center gap-1.5">
             {row.name}
-            {row.isHistorical && (
+            {row.hasHistorical && (
               <Chip className="uppercase">{t("historical.chip")}</Chip>
             )}
           </span>
@@ -1061,15 +1091,18 @@ function SellerWorkspace() {
               })
         }
         action={
-          row.isHistorical && row.validationStatus === "pending" ? (
+          row.hasHistorical && row.validationStatus === "pending" ? (
             <div className="flex flex-wrap gap-1.5">
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={() =>
-                  navigate(`/vendedor/clientes/historicos/${row.id}`, {
-                    state: { from: location.pathname },
-                  })
+                  navigate(
+                    `/vendedor/clientes/historicos/${row.historicalSaleId || row.id}`,
+                    {
+                      state: { from: location.pathname },
+                    }
+                  )
                 }
               >
                 {t("common.edit")}

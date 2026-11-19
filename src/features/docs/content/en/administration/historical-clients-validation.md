@@ -15,6 +15,17 @@ The tab has four summary cards:
 - **Rejected** — records rejected as invalid.
 - **Total** — all historical records matching the current seller/search filter.
 
+## Historical clients in Users and reservations
+
+Every historical client is linked to a real customer account (`role = user`). This means:
+
+- The client appears in **Users → Clients** with a **HISTÓRICO** chip.
+- The **Históricos** filter shows only clients created from migrated sales.
+- The client can be found and selected in the reservation wizard as an existing client.
+- If the historical record had no email, the account uses a non-deliverable placeholder. The UI shows **No email** and hides **Invite / Resend confirmation** until an admin adds a real email from the user edit form.
+
+The account is created when the historical record is saved or imported. Existing records are linked by the deployment backfill. Validation does not create the account and does not change it.
+
 ## Filters
 
 - **Search** matches the client name, identity, phone, or project.

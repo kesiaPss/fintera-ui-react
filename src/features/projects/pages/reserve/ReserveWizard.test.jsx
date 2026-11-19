@@ -4,6 +4,7 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 import en from "../../../../locales/en.json";
 import ReserveWizard from "./ReserveWizard";
 import { sellerApi } from "../../../seller/api";
+import { usersApi } from "../../../users/api";
 
 expect.extend(matchers);
 
@@ -36,6 +37,10 @@ vi.mock("@/shared/editor/MessageEditor", () => ({
 
 vi.mock("../../../seller/api", () => ({
   sellerApi: { listSellers: vi.fn() },
+}));
+
+vi.mock("../../../users/api", () => ({
+  usersApi: { list: vi.fn() },
 }));
 
 const sellers = [
@@ -82,6 +87,7 @@ const completeAndSubmit = async () => {
 
 beforeEach(() => {
   sellerApi.listSellers.mockResolvedValue({ sellers });
+  usersApi.list.mockResolvedValue({ users: [], pagination: {} });
 });
 
 afterEach(() => {
@@ -144,5 +150,37 @@ describe("ReserveWizard seller question", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /No one assisted me/ }));
     expect(within(rail).getByText("Automatic assignment")).toBeInTheDocument();
+  });
+
+  it("marks a historical client in the reservation search and selection", async () => {
+    usersApi.list.mockResolvedValue({
+      users: [
+        {
+          id: 9,
+          full_name: "Ana Histórica",
+          email: "historico+ana@fintera.local",
+          phone: "9999-1111",
+          identity: "0801-1990-00009",
+          historical_client: true,
+          credit_score: 700,
+        },
+      ],
+      pagination: {},
+    });
+
+    render(<ReserveWizard lot={lot} currency="HNL" onSubmit={vi.fn()} />);
+
+    const search = screen.getByPlaceholderText("Search by name, phone or email");
+    fireEvent.change(search, { target: { value: "Ana" } });
+
+    expect(
+      await screen.findByText("Ana Histórica", {}, { timeout: 2500 })
+    ).toBeInTheDocument();
+    expect(screen.getByText("HISTORICAL")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Ana Histórica"));
+
+    expect(screen.getAllByText("HISTORICAL").length).toBeGreaterThan(0);
+    expect(screen.getByText("No email")).toBeInTheDocument();
   });
 });

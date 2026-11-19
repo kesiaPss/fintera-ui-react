@@ -13,6 +13,7 @@ import {
 import { formatDate } from "@/shared/utils/formatters";
 import { Chip } from "@/shared/ui";
 import SellerScoreSummary from "./SellerScoreSummary";
+import { displayUserEmail } from "../utils/historicalEmail";
 
 const FICO_MIN = 300;
 const FICO_MAX = 850;
@@ -224,7 +225,10 @@ function RightSidebar({
             {t("contracts.contactInformation")}
           </h4>
           <dl className="space-y-2.5">
-            <ContactRow label={t("personalInfo.email")} value={user.email} />
+            <ContactRow
+              label={t("personalInfo.email")}
+              value={displayUserEmail(user, t)}
+            />
             <ContactRow label={t("personalInfo.phone")} value={user.phone} />
             <ContactRow
               label={t("personalInfo.identity")}
