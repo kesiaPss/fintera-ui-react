@@ -1,13 +1,15 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import AuthContext from "@/contexts/AuthContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useToast } from "@/contexts/ToastContext";
 import { commissionsApi } from "../api";
 import CommissionCreditsCard from "../components/CommissionCreditsCard";
 import CommissionRulesSheet from "../components/CommissionRulesSheet";
+import HistoricalValidationTab from "../components/HistoricalValidationTab";
 import { readCommissionCredits } from "../utils/credits";
 import ScoreBadge from "@/features/seller/components/ScoreBadge";
+import { sellerApi } from "@/features/seller/api";
 import { readSellerScore } from "@/features/seller/utils/scoreMetrics";
 import { confirmDialog } from "@/shared/ui/ConfirmProvider";
 import {
@@ -22,6 +24,7 @@ import {
   Select,
   Skeleton,
   Table,
+  Tabs,
 } from "@/shared/ui";
 import { buildExportFilename } from "@/shared/export/formats";
 
@@ -119,6 +122,10 @@ function Commissions() {
   const { t } = useLocale();
   const { showToast } = useToast();
   const isAdmin = user?.role === "admin";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab =
+    searchParams.get("tab") === "historical" ? "historical" : "commissions";
+  const [pendingHistorical, setPendingHistorical] = useState(0);
   const [paying, setPaying] = useState(null);
   const [startDate, setStartDate] = useState(monthStart);
   const [endDate, setEndDate] = useState(monthEnd);
@@ -167,6 +174,31 @@ function Commissions() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let active = true;
+    sellerApi
+      .listHistoricalSales({ status: "pending", page: 1, per_page: 1 })
+      .then((data) => {
+        if (active) {
+          setPendingHistorical(Number(data?.pagination?.total ?? 0));
+        }
+      })
+      .catch(() => {
+        if (active) setPendingHistorical(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, isAdmin]);
+
+  const handleTabChange = (next) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "historical") params.set("tab", "historical");
+    else params.delete("tab");
+    setSearchParams(params, { replace: true });
+  };
 
   // A seller filter only makes sense while that seller has commissions in the
   // period. When the period changes and the seller disappears from the server
@@ -415,34 +447,63 @@ function Commissions() {
         <header className="motion-fade-up flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-page font-bold tracking-tight text-ink">
-              {t("commissions.pageTitle")}
+              {activeTab === "historical"
+                ? t("historical.validationQueue.title")
+                : t("commissions.pageTitle")}
             </h1>
             <p className="mt-1 text-body text-ink-3">
-              {t("commissions.pageSubtitle", {
-                count: pagination.total,
-                rate: averageRate,
-                seller: selectedSellerName || t("commissions.allSellers"),
-              })}
+              {activeTab === "historical"
+                ? t("historical.validationQueue.subtitle")
+                : t("commissions.pageSubtitle", {
+                    count: pagination.total,
+                    rate: averageRate,
+                    seller:
+                      selectedSellerName || t("commissions.allSellers"),
+                  })}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-label font-semibold text-ink-3">
-              {t("common.export")}
-            </span>
-            <ExportFormatButtons
-              size="md"
-              onSelect={handleExport}
-              busyFormat={exportingFormat}
-              reportLabel={t("reports.commissions")}
-            />
-            {isAdmin && (
-              <Button variant="secondary" onClick={() => setRulesOpen(true)}>
-                {t("commissions.configureRates")}
-              </Button>
-            )}
-          </div>
+          {activeTab === "commissions" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-label font-semibold text-ink-3">
+                {t("common.export")}
+              </span>
+              <ExportFormatButtons
+                size="md"
+                onSelect={handleExport}
+                busyFormat={exportingFormat}
+                reportLabel={t("reports.commissions")}
+              />
+              {isAdmin && (
+                <Button variant="secondary" onClick={() => setRulesOpen(true)}>
+                  {t("commissions.configureRates")}
+                </Button>
+              )}
+            </div>
+          )}
         </header>
 
+        <Tabs
+          items={[
+            {
+              value: "commissions",
+              label: t("commissions.pageTitle"),
+            },
+            {
+              value: "historical",
+              label: `${t("historical.validationQueue.tab")}${
+                pendingHistorical > 0 ? `  ${pendingHistorical}` : ""
+              }`,
+            },
+          ]}
+          value={activeTab}
+          onChange={handleTabChange}
+          className="motion-fade-up [animation-delay:30ms]"
+        />
+
+        {activeTab === "historical" ? (
+          <HistoricalValidationTab onPendingChange={setPendingHistorical} />
+        ) : (
+          <>
         <div className="motion-fade-up flex flex-wrap items-end gap-3 [animation-delay:45ms]">
           <label className="flex flex-col gap-1 text-label font-semibold text-ink-2">
             {t("filters.startDate")}
@@ -621,6 +682,8 @@ function Commissions() {
             </>
           )}
         </Card>
+          </>
+        )}
       </div>
 
       <CommissionRulesSheet

@@ -12,7 +12,7 @@ Cada proyecto guarda tres tasas:
 
 La comisión se calcula cuando se aprueba el contrato y se guarda en el contrato. Los cambios de tasa posteriores solo aplican a contratos nuevos.
 
-Los administradores abren **Configurar tasas** desde la página de Comisiones. La hoja de reglas explica que la tasa viene del proyecto, que la comisión se calcula al aprobar y que las excepciones por vendedor no están disponibles en esta versión: las tasas del proyecto aplican a todos los vendedores.
+Los administradores abren **Configurar tasas** desde la página de Comisiones. La hoja de reglas define la tasa global por defecto, la tasa sin vendedor y las excepciones por vendedor. Una excepción por vendedor reemplaza la tasa del proyecto/global para ese vendedor. Los registros históricos usan la excepción del vendedor si existe; de lo contrario, la tasa global por defecto.
 
 ## Página de comisiones del administrador
 
@@ -24,6 +24,18 @@ Abre **Comisiones** desde el menú del administrador. La página tiene:
 - **Exportar** para descargar el periodo en CSV.
 
 Para una comisión pendiente, **Pagar** pide confirmación y marca la comisión como pagada. Escribe una entrada de auditoría y **no** cambia el saldo del contrato. Las comisiones pagadas muestran **Ver**, que abre un diálogo de detalle en solo lectura.
+
+## Históricos por validar
+
+La página de Comisiones tiene una pestaña **Por validar** con el número de registros históricos pendientes de revisión. Muestra los totales de pendientes, validados y rechazados; filtra por vendedor, estado y texto; y una tabla con cliente, vendedor, fecha de venta, precio, tasa, comisión, respaldo y estado.
+
+Desde cada fila pendiente, el administrador puede:
+
+- **Validar** el registro. Sale de la lista de pendientes y sigue siendo una venta histórica; no crea reserva ni bloquea lote.
+- **Rechazar** el registro tras confirmar.
+- **Editar** el cliente, la venta, la tasa o el monto de comisión antes de validar.
+
+Los vendedores pueden editar sus propios registros pendientes desde **Mis clientes**; los validados son de solo lectura para ellos.
 
 ## Comisiones del vendedor
 

@@ -17,6 +17,7 @@ Usa el buscador para filtrar por nombre del cliente, teléfono o identidad. La l
 ## Agregar clientes
 
 - **Agregar cliente** abre el formulario de cliente histórico para un cliente y una venta anteriores a tu uso de Fintera. El registro aparece como **Histórico · por validar** hasta que un administrador lo valide.
+- **Editar** en una fila histórica pendiente permite corregir los datos del cliente, la tasa o el monto de comisión antes de la validación.
 - **Importar CSV** carga varios clientes históricos a la vez desde una hoja de cálculo.
 - Para una venta nueva, crea el cliente dentro del asistente de reserva.
 

@@ -20,6 +20,7 @@ const t = (key, params = {}) => {
 };
 
 const { showToast } = vi.hoisted(() => ({ showToast: vi.fn() }));
+const authState = vi.hoisted(() => ({ role: "admin" }));
 
 vi.mock("../api", () => ({
   sellerApi: {
@@ -58,7 +59,12 @@ vi.mock("@/contexts/AuthContext", async () => {
   const { createContext } = await import("react");
   return {
     default: createContext({
-      user: { id: 1, role: "admin" },
+      user: {
+        id: 1,
+        get role() {
+          return authState.role;
+        },
+      },
       loading: false,
     }),
   };
@@ -111,6 +117,7 @@ function renderWorkspace(path = "/vendedor/clientes") {
 }
 
 beforeEach(() => {
+  authState.role = "admin";
   Object.values(sellerApi).forEach((mock) => mock.mockReset());
   contractsApi.getByGuid.mockReset();
   paymentsApi.getStats.mockReset();
@@ -188,6 +195,27 @@ describe("historical rows in seller clients (21b)", () => {
       "Historical record rejected.",
       "success"
     );
+  });
+
+  it("lets a seller edit a pending historical record", async () => {
+    authState.role = "seller";
+    renderWorkspace();
+
+    await screen.findAllByText("Sergio Peralta");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Validate" })).toBeNull();
+  });
+
+  it("lets an admin edit a pending historical record", async () => {
+    renderWorkspace();
+
+    await screen.findAllByText("Sergio Peralta");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Validate" })).toBeInTheDocument();
   });
 
   it("opens the CSV import sheet from the clients toolbar", async () => {

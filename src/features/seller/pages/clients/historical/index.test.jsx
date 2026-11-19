@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import en from "../../../../../locales/en.json";
@@ -24,7 +24,9 @@ const { showToast } = vi.hoisted(() => ({ showToast: vi.fn() }));
 vi.mock("../../../api", () => ({
   sellerApi: {
     getCommissionRules: vi.fn(),
+    getHistoricalSale: vi.fn(),
     createHistoricalSale: vi.fn(),
+    updateHistoricalSale: vi.fn(),
   },
 }));
 
@@ -42,6 +44,19 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <HistoricalClientPage />
+    </MemoryRouter>
+  );
+}
+
+function renderEditPage(id = "91") {
+  return render(
+    <MemoryRouter initialEntries={[`/vendedor/clientes/historicos/${id}`]}>
+      <Routes>
+        <Route
+          path="/vendedor/clientes/historicos/:id"
+          element={<HistoricalClientPage />}
+        />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -87,9 +102,12 @@ const fillForm = () => {
 
 beforeEach(() => {
   sellerApi.getCommissionRules.mockReset();
+  sellerApi.getHistoricalSale.mockReset();
   sellerApi.createHistoricalSale.mockReset();
+  sellerApi.updateHistoricalSale.mockReset();
   sellerApi.getCommissionRules.mockResolvedValue({ default_rate: 5 });
   sellerApi.createHistoricalSale.mockResolvedValue({ id: 91 });
+  sellerApi.updateHistoricalSale.mockResolvedValue({ id: 91 });
 });
 
 afterEach(() => {
@@ -178,5 +196,102 @@ describe("historical client form", () => {
       await screen.findByText("Enter the full name.")
     ).toBeInTheDocument();
     expect(sellerApi.createHistoricalSale).not.toHaveBeenCalled();
+  });
+
+  it("preloads the seller rate and allows overriding it", async () => {
+    sellerApi.getCommissionRules.mockResolvedValue({
+      rules: { default_rate: 5, seller_rate: 6 },
+    });
+
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Commission rate/)).toHaveValue(6)
+    );
+
+    fillForm();
+    expect(screen.getByDisplayValue("45000.00")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Commission rate/), {
+      target: { value: "7" },
+    });
+    expect(screen.getByDisplayValue("52500.00")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(sellerApi.createHistoricalSale).toHaveBeenCalledTimes(1)
+    );
+
+    const payload = sellerApi.createHistoricalSale.mock.calls[0][0];
+    expect(payload).toMatchObject({ rate: 7, amount: 52500 });
+  });
+
+  it("recalculates the rate when the commission amount changes", async () => {
+    renderPage();
+    fillForm();
+
+    fireEvent.change(screen.getByLabelText(/Commission amount/), {
+      target: { value: "45000" },
+    });
+
+    expect(screen.getByLabelText(/Commission rate/)).toHaveValue(6);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(sellerApi.createHistoricalSale).toHaveBeenCalledTimes(1)
+    );
+
+    const payload = sellerApi.createHistoricalSale.mock.calls[0][0];
+    expect(payload).toMatchObject({ rate: 6, amount: 45000 });
+  });
+
+  it("loads and updates a pending historical record", async () => {
+    sellerApi.getHistoricalSale.mockResolvedValue({
+      historical_sale: {
+        id: 91,
+        full_name: "Ana Ramos",
+        client_identity: "0801-1990-12345",
+        client_phone: "9999-8888",
+        client_email: "ana@example.com",
+        project_name: "Residencial Los Pinos",
+        lot_label: "Lote 12",
+        area_m2: 500,
+        sale_price: 750000,
+        sale_date: "2023-05-15",
+        payment_mode: "bank",
+        sale_status: "installments",
+        installments_paid: 3,
+        rate: 6,
+        commission_amount: 45000,
+        commission_status: "pending",
+        validation_status: "pending",
+      },
+    });
+
+    renderEditPage();
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Edit historical client",
+      })
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Full name/)).toHaveValue("Ana Ramos")
+    );
+    expect(screen.getByLabelText(/Commission rate/)).toHaveValue(6);
+    expect(screen.getByLabelText(/Commission amount/)).toHaveValue(45000);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(sellerApi.updateHistoricalSale).toHaveBeenCalledWith(
+        "91",
+        expect.objectContaining({
+          full_name: "Ana Ramos",
+          sale_price: 750000,
+          rate: 6,
+          amount: 45000,
+        })
+      )
+    );
   });
 });

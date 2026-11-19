@@ -1,5 +1,5 @@
-import { useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useContext, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import AuthContext from "@/contexts/AuthContext";
@@ -41,6 +41,7 @@ const emptyForm = () => ({
   payment_mode: "financed",
   sale_status: "installments",
   installments_paid: "",
+  commission_rate: "",
   commission_amount: "",
   commission_status: "pending",
 });
@@ -58,34 +59,58 @@ function HistoricalClientPage() {
   const { t } = useLocale();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
   const { user } = useContext(AuthContext);
-  const userRate = Number(
-    user?.commission_rate_override ?? user?.commission_rate
-  );
+  const isAdmin = user?.role === "admin";
+  const rateTouched = useRef(false);
   const [rulesRate, setRulesRate] = useState(5);
   const [form, setForm] = useState(emptyForm);
   const [evidence, setEvidence] = useState(null);
+  const [existingEvidence, setExistingEvidence] = useState("");
+  const [record, setRecord] = useState(null);
+  const [loadingRecord, setLoadingRecord] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
 
-  const currentRate = useMemo(() => {
-    const value = Number.isFinite(userRate) && userRate > 0 ? userRate : rulesRate;
-    return value > 0 ? value : 5;
-  }, [rulesRate, userRate]);
+  const locked =
+    isEdit && record && record.validation_status !== "pending" && !isAdmin;
 
   useEffect(() => {
-    if (Number.isFinite(userRate) && userRate > 0) return undefined;
     let active = true;
 
     const loadRate = async () => {
       if (typeof sellerApi.getCommissionRules !== "function") return;
       try {
-        const data = await sellerApi.getCommissionRules();
+        const response = await sellerApi.getCommissionRules();
+        const data = response?.rules ?? response?.commission_rules ?? response;
         const next = Number(
-          data?.default_rate ?? data?.commission_rate ?? data?.rate
+          data?.seller_rate ??
+            data?.default_rate ??
+            data?.commission_rate ??
+            data?.rate
         );
-        if (active && Number.isFinite(next) && next > 0) setRulesRate(next);
+        if (!active || !Number.isFinite(next) || next <= 0) return;
+        setRulesRate(next);
+        if (!isEdit) {
+          setForm((previous) => {
+            if (previous.commission_rate || rateTouched.current) {
+              return previous;
+            }
+            const price = Number(previous.sale_price);
+            const amount =
+              Number.isFinite(price) && price > 0
+                ? (Math.round(price * next) / 100).toFixed(2)
+                : previous.commission_amount;
+            return {
+              ...previous,
+              commission_rate: String(next),
+              commission_amount: amount,
+            };
+          });
+        }
       } catch {
         // Keep the fallback rate when the rules endpoint is unavailable.
       }
@@ -95,31 +120,112 @@ function HistoricalClientPage() {
     return () => {
       active = false;
     };
-  }, [userRate]);
+  }, [isEdit]);
 
   useEffect(() => {
-    setForm((previous) => {
-      if (!previous.sale_price) return previous;
-      const price = Number(previous.sale_price);
-      if (!Number.isFinite(price) || price <= 0) return previous;
-      const amount = (Math.round(price * currentRate) / 100).toFixed(2);
-      return previous.commission_amount === amount
-        ? previous
-        : { ...previous, commission_amount: amount };
-    });
-  }, [currentRate]);
+    if (!isEdit) return undefined;
+    let active = true;
+    setLoadingRecord(true);
+
+    const loadRecord = async () => {
+      try {
+        const data = await sellerApi.getHistoricalSale(id);
+        const sale = data?.historical_sale || data;
+        if (!active || !sale) return;
+        setRecord(sale);
+        setExistingEvidence(sale.evidence_file || "");
+        const paymentMode = String(sale.payment_mode || "").toLowerCase();
+        const saleStatus = String(sale.sale_status || "").toLowerCase();
+        const paymentModes = {
+          cash: "cash",
+          contado: "cash",
+          efectivo: "cash",
+        };
+        const saleStatuses = {
+          deeded: "deeded",
+          escriturado: "deeded",
+          paid: "paid",
+          pagado: "paid",
+          pagada: "paid",
+          installments: "installments",
+          en_cuotas: "installments",
+          cuotas: "installments",
+        };
+        setForm({
+          full_name: sale.full_name || sale.client_name || "",
+          identity: sale.identity || sale.client_identity || "",
+          phone: sale.phone || sale.client_phone || "",
+          email: sale.email || sale.client_email || "",
+          project_name: sale.project_name || "",
+          lot_label: sale.lot_label || "",
+          area_m2: sale.area_m2 ?? "",
+          sale_price: sale.sale_price ?? "",
+          sale_date: sale.sale_date || today(),
+          payment_mode: paymentModes[paymentMode] || "financed",
+          sale_status: saleStatuses[saleStatus] || "installments",
+          installments_paid: sale.installments_paid ?? "",
+          commission_rate:
+            sale.rate !== null && sale.rate !== undefined
+              ? String(sale.rate)
+              : "",
+          commission_amount:
+            sale.commission_amount !== null &&
+            sale.commission_amount !== undefined
+              ? String(sale.commission_amount)
+              : "",
+          commission_status: sale.commission_status || "pending",
+        });
+        setError(null);
+      } catch (err) {
+        if (active) {
+          setError(
+            err?.errors?.join(", ") || err?.message || t("historical.loadError")
+          );
+        }
+      } finally {
+        if (active) setLoadingRecord(false);
+      }
+    };
+
+    loadRecord();
+    return () => {
+      active = false;
+    };
+  }, [id, isEdit, t]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setSaved(false);
+    if (name === "commission_rate") rateTouched.current = true;
     setForm((previous) => {
       const next = { ...previous, [name]: value };
-      if (name === "sale_price") {
-        const price = Number(value);
-        next.commission_amount =
-          Number.isFinite(price) && price > 0
-            ? (Math.round(price * currentRate) / 100).toFixed(2)
-            : "";
+      const price = Number(next.sale_price);
+      if (name === "sale_price" || name === "commission_rate") {
+        const rate =
+          next.commission_rate === ""
+            ? rulesRate
+            : Number(next.commission_rate);
+        if (
+          Number.isFinite(price) &&
+          price > 0 &&
+          Number.isFinite(rate) &&
+          rate >= 0
+        ) {
+          next.commission_amount = (Math.round(price * rate) / 100).toFixed(2);
+        }
+      }
+      if (name === "commission_amount" && value !== "") {
+        const amount = Number(value);
+        if (
+          Number.isFinite(price) &&
+          price > 0 &&
+          Number.isFinite(amount) &&
+          amount >= 0
+        ) {
+          next.commission_rate = (
+            Math.round((amount / price) * 10000) / 100
+          ).toFixed(2);
+        }
       }
       return next;
     });
@@ -176,13 +282,21 @@ function HistoricalClientPage() {
       return;
     }
 
+    if (locked) {
+      setError(t("historical.lockedError"));
+      return;
+    }
+
     const area = form.area_m2 === "" ? null : Number(form.area_m2);
     if (area !== null && (!Number.isFinite(area) || area < 0)) {
       setError(t("historical.requiredArea"));
       return;
     }
 
-    const fallbackAmount = Math.round(price * currentRate) / 100;
+    const parsedRate = Number(form.commission_rate);
+    const effectiveRate =
+      Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : rulesRate;
+    const fallbackAmount = Math.round(price * effectiveRate) / 100;
     const amount =
       form.commission_amount === ""
         ? fallbackAmount
@@ -204,18 +318,25 @@ function HistoricalClientPage() {
         form.sale_status === "installments"
           ? Number(form.installments_paid || 0)
           : null,
-      rate: currentRate,
+      rate: effectiveRate,
       amount: Number.isFinite(amount) ? amount : fallbackAmount,
       commission_status: form.commission_status,
-      evidence_file: evidence?.name || null,
+      evidence_file: evidence?.name || existingEvidence || null,
       is_historical: true,
     };
 
     setSaving(true);
     try {
+      if (isEdit) {
+        await sellerApi.updateHistoricalSale(id, payload);
+        showToast(t("historical.updated"), "success");
+        navigate(location.state?.from || "/vendedor/clientes");
+        return;
+      }
       await sellerApi.createHistoricalSale(payload);
-      setForm(emptyForm());
+      setForm({ ...emptyForm(), commission_rate: String(rulesRate) });
       setEvidence(null);
+      rateTouched.current = false;
       setSaved(true);
       showToast(t("historical.savedPending"), "success");
     } catch (err) {
@@ -241,24 +362,28 @@ function HistoricalClientPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-page font-bold tracking-tight text-ink">
-              {t("historical.addClientTitle")}
+              {isEdit
+                ? t("historical.editTitle")
+                : t("historical.addClientTitle")}
             </h1>
             <p className="mt-1 max-w-2xl text-body text-ink-3">
-              {t("historical.subtitle")}
+              {isEdit ? t("historical.editSubtitle") : t("historical.subtitle")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() =>
-                navigate("/vendedor/clientes", {
-                  state: { openHistoricalImport: true },
-                })
-              }
-              disabled={saving}
-            >
-              {t("historical.importCsv")}
-            </Button>
+            {!isEdit && (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  navigate("/vendedor/clientes", {
+                    state: { openHistoricalImport: true },
+                  })
+                }
+                disabled={saving}
+              >
+                {t("historical.importCsv")}
+              </Button>
+            )}
             <Button
               variant="ghost"
               onClick={() => navigate(-1)}
@@ -270,12 +395,18 @@ function HistoricalClientPage() {
               type="submit"
               form="historical-form"
               loading={saving}
-              disabled={saving}
+              disabled={saving || loadingRecord || locked}
             >
-              {t("historical.save")}
+              {isEdit ? t("historical.saveChanges") : t("historical.save")}
             </Button>
           </div>
         </header>
+
+        {loadingRecord && (
+          <Banner tone="info">{t("historical.loadingRecord")}</Banner>
+        )}
+
+        {locked && <Banner tone="warning">{t("historical.lockedMessage")}</Banner>}
 
         {saved && (
           <Banner
@@ -476,13 +607,19 @@ function HistoricalClientPage() {
                   <div className="md:col-span-2">
                     <Field
                       label={t("historical.commissionRate")}
-                      hint={t("historical.commissionSectionHint")}
+                      hint={t("historical.rateHint")}
                     >
                       <Input
-                        readOnly
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        inputMode="decimal"
                         name="commission_rate"
-                        value={currentRate}
+                        value={form.commission_rate}
+                        onChange={handleChange}
                         aria-label={t("historical.commissionRate")}
+                        disabled={locked}
                       />
                     </Field>
                   </div>
@@ -496,6 +633,7 @@ function HistoricalClientPage() {
                         name="commission_amount"
                         value={form.commission_amount}
                         onChange={handleChange}
+                        disabled={locked}
                       />
                     </Field>
                   </div>

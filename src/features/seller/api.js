@@ -30,6 +30,8 @@ export const sellerApi = {
 
   listHistoricalSales: (params) =>
     apiClient.get(`${API}/historical_sales`, { params }),
+  getHistoricalSale: (id) =>
+    apiClient.get(`${API}/historical_sales/${id}`),
   createHistoricalSale: (payload) =>
     apiClient.post(`${API}/historical_sales`, payload),
   updateHistoricalSale: (id, payload) =>

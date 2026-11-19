@@ -11,6 +11,7 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 import en from "../../../locales/en.json";
 import Commissions from "./index";
 import { commissionsApi } from "../api";
+import { sellerApi } from "@/features/seller/api";
 import { confirmDialog } from "@/shared/ui/ConfirmProvider";
 
 expect.extend(matchers);
@@ -35,6 +36,12 @@ vi.mock("../api", () => ({
     markPaid: vi.fn(),
     applyCredit: vi.fn(),
     download: vi.fn(),
+  },
+}));
+
+vi.mock("@/features/seller/api", () => ({
+  sellerApi: {
+    listHistoricalSales: vi.fn(),
   },
 }));
 
@@ -128,11 +135,13 @@ beforeEach(() => {
   commissionsApi.markPaid.mockReset();
   commissionsApi.applyCredit.mockReset();
   commissionsApi.download.mockReset();
+  sellerApi.listHistoricalSales.mockReset();
   confirmDialog.mockReset();
   showToast.mockReset();
 
   commissionsApi.list.mockResolvedValue(buildResponse());
   commissionsApi.applyCredit.mockResolvedValue({});
+  sellerApi.listHistoricalSales.mockResolvedValue({ pagination: { total: 0 } });
   confirmDialog.mockResolvedValue(true);
 });
 

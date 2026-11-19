@@ -160,6 +160,8 @@ describe("historical CSV import sheet", () => {
       project_name: "2",
       sale_price: "3",
       sale_date: "4",
+      rate: "",
+      commission_amount: "",
     });
 
     expect(onImported).toHaveBeenCalledTimes(1);

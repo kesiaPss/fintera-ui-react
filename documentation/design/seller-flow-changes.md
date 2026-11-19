@@ -121,21 +121,25 @@ expirada, cobro registrado. La campanita muestra badge de no leídas.
 
 | Frame | Ubicación (x, y) | Contenido |
 | --- | --- | --- |
-| `05d - Reserva` | 6167, 3502 | Reserva con bloque “¿Un vendedor te atendió?” (3 opciones + buscar + hint), cliente, notas y rail con resumen, lote y **vendedor asignado**. Consolidó el antiguo `05h`. |
-| `05f - Recorrido reserva` | 8386, 3502 | Recorrido de 3 pasos con fila de vendedor asignado. |
-| `05i - Estados de asignación` | 6167, 5810 | Pendiente (contador `01:59:12` + Aceptar/Rechazar), Aceptada (comisión), Expirada (sin comisión). |
-| `07b - Usuario formulario` | 1520, 4907 | Tarjeta **Score de aceptación** en el rail: badge + input editable + reglas de color. |
-| `07c - Usuario detalle` | 4593, 4907 | Score de solo lectura: badge, barra, “12 de 13 aceptadas · 90 días”, autor del ajuste + Editar. |
-| `21 - Vendedor` | 0, 9785 | Mi día (sin cambios de asignaciones) + tarjeta de enlace y reservas atribuidas. |
-| `21b - Vendedor clientes` | 1537, 9785 | Botones **Importar CSV** / **Agregar cliente** y fila con chip **HISTÓRICO**. |
-| `21d - Vendedor comisiones` | 4577, 9785 | Tabla con columna **ORIGEN** (Enlace / Directo / Histórico) y KPI **Score de aceptación**. |
-| `21f - Vendedor enlace de referido` | 3057, 10918 | URL, copiar/WhatsApp, QR, métricas, cómo funciona, reglas y tabla de reservas atribuidas. |
-| `21g - Notificación de asignación` | 4657, 10918 | Campanita con badge + dropdown: asignación con contador y Aceptar/Rechazar, notificación expirada, cobro. |
-| `21h - Vendedor cliente histórico` | 5257, 10918 | Formulario de migración manual (cliente, venta, comisión, respaldo) + “qué pasa al guardar”. |
-| `21i - Importar clientes históricos` | 6837, 10918 | Panel CSV: dropzone/plantilla, toggles, mapeo de columnas, resumen de filas válidas/errores. |
-| `22 - Admin comisiones` | 0, 10918 | Tabla con badge de score junto al vendedor. |
-| `22b - Reglas de comisión` | 1537, 10918 | Tasa por defecto, regla de pago, **“Tiempo para aceptar la asignación = 2 horas”**, excepciones. |
-| `22c - Score de vendedor` | 1537, 11690 | Especificación de los 3 niveles, umbrales, cálculo y componentes `Score / Alto · Medio · Bajo`. |
+| `04 - Reserva` | 6440, 0 | Reserva con bloque “¿Un vendedor te atendió?” (3 opciones + buscar + hint), cliente, notas y rail con resumen, lote y **vendedor asignado**. |
+| `04b - Recorrido reserva` | 6440, 1224 | Recorrido de 3 pasos con fila de vendedor asignado. |
+| `04c - Estados de asignación` | 6440, 2224 | Pendiente (contador `01:59:12` + Aceptar/Rechazar), Aceptada (comisión), Expirada (sin comisión). |
+| `06b - Usuario formulario` | 8120, 3408 | Tarjeta **Score de aceptación** en el rail: badge + input editable + reglas de color. |
+| `06c - Usuario detalle` | 8120, 4632 | Score de solo lectura: badge, barra, “12 de 13 aceptadas · 90 días”, autor del ajuste + Editar. |
+| `12 - Vendedor inicio` | 16520, 0 | Mi día + tarjeta de enlace y reservas atribuidas. |
+| `12b - Vendedor clientes` | 16520, 1224 | Botones **Importar CSV** / **Agregar cliente**, fila con chip **HISTÓRICO**, estado “Histórico · por validar” y acción **Editar**. |
+| `12d - Vendedor comisiones` | 16520, 3672 | Tabla con columna **ORIGEN** (Enlace / Directo / Histórico) y KPI **Score de aceptación**. |
+| `12g - Vendedor enlace de referido` | 16520, 7344 | URL, copiar/WhatsApp, QR, métricas, cómo funciona, reglas y tabla de reservas atribuidas. |
+| `12h - Notificación de asignación` | 16520, 8568 | Campanita con badge + dropdown: asignación con contador y Aceptar/Rechazar, notificación expirada, cobro. |
+| `12i - Vendedor cliente histórico` | 16520, 9408 | Formulario de migración manual (cliente, venta, comisión, respaldo) con **tasa editable** y “qué pasa al guardar”. |
+| `12j - Importar clientes históricos` | 16520, 10632 | Panel CSV: dropzone/plantilla, toggles, mapeo de columnas, resumen de filas válidas/errores. |
+| `11 - Comisiones` | 14840, 0 | Tabla con badge de score junto al vendedor y pestañas **Comisiones / Históricos por validar**. |
+| `11b - Reglas de comisión` | 14840, 1224 | Tasa por defecto, regla de pago, **“Tiempo para aceptar la asignación = 2 horas”**, excepciones. |
+| `11c - Score de vendedor` | 14840, 2140 | Especificación de los 3 niveles, umbrales, cálculo y componentes `Score / Alto · Medio · Bajo`. |
+| `11d - Comisiones · Históricos` | 14840, 2760 | Pestaña de validación: KPIs, filtros, tabla de históricos pendientes y acciones Validar / Rechazar / Editar. |
+
+> Los nombres de frame se actualizaron al documento actual. Las referencias
+> antiguas (`21`, `22`, etc.) quedan obsoletas.
 
 En `fintera-landing.pen` (portal del cliente): landing, `Proyectos · Directorio`,
 `Proyecto · Detalle y plano`, `Reserva · 1 Financiamiento`, `Reserva · 2
@@ -183,9 +187,13 @@ Resueltas con el usuario:
 4. Ventana de atribución: **30 días**, última interacción gana.
 5. Comisiones históricas **suman a los KPIs** con su fecha real.
 6. Estados de asignación: **`pending → accepted | expired`** ("Rechazar" es expiración inmediata).
+7. La **tasa de comisión histórica es editable por registro**: se precarga la tasa efectiva del vendedor (excepción o tasa por defecto) y se puede ajustar; el monto se recalcula y la tasa se mantiene consistente.
+8. La **validación de históricos** vive en la pestaña **Históricos por validar** dentro de `11 - Comisiones` (`11d`), con KPIs, filtros y acciones Validar / Rechazar / Editar.
+9. Los históricos **pendientes se pueden editar** (datos, tasa y monto) antes de validar; los validados quedan inmutables para el vendedor.
 
-Implementación: cambio OpenSpec `seller-referrals-and-assignments` en FinteraUI y
-FinteraAPI. La ventana de aceptación es configurable (`22b`) y se persiste; la
-comisión se recalcula al asignar; el cliente no recibe comisión/origen/estado de
-asignación; la cartera del vendedor incluye solo asignaciones aceptadas.
+Implementación: cambios OpenSpec `seller-referrals-and-assignments` y
+`complete-historical-client-flow` en FinteraUI y FinteraAPI. La ventana de
+aceptación es configurable (`11b`) y se persiste; la comisión se recalcula al
+asignar; el cliente no recibe comisión/origen/estado de asignación; la cartera
+del vendedor incluye solo asignaciones aceptadas.
 
