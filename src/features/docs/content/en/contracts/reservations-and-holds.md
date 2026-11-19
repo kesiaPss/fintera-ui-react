@@ -13,7 +13,7 @@ A **reservation** locks a lot for a customer before the sale is complete.
 
 Sellers and admins start a reservation from a lot or from **New reservation** on the seller's **My day**.
 
-1. **Client** — search for an existing customer or create a new one with name, phone, identity, RTN, and email.
+1. **Client** — search for an existing customer or create a new one with name, phone, identity, RTN, and email. Historical clients appear in the search with a **HISTÓRICO** chip; selecting one reuses their customer account.
 2. **Financing plan** — choose direct, bank, or cash; enter the payment term, maximum payment date, reservation amount, down payment, and notes as required.
 3. **Confirm** — review the summary and attach any documents.
 

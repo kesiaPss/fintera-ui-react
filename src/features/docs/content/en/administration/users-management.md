@@ -8,12 +8,22 @@ The Users page lists the people who can sign in. It shows:
 
 - A summary line with total users, admins, sellers, and clients.
 - **Search** by name, email, or identity.
-- Role chips with counts for **All**, **Admins**, **Sellers**, and **Clients**.
+- Role chips with counts for **All**, **Admins**, **Sellers**, **Clients**, and **Historical**.
 - A **Show all / Show active only** toggle.
 - A table with user, role, client count, status, and actions.
 - Pagination.
 
 Selecting a row opens the user drawer with contact data, role, status, client count, balance and statement link for customers, credit score (admin viewing a customer), activity dates, and notes. The drawer also offers **Edit**, **Deactivate/Activate**, **Invite** (resend confirmation), and **Delete**.
+
+## Historical clients
+
+Historical clients created from a migrated sale are real customer accounts (`role = User`) marked with a **HISTÓRICO** chip. Use the **Historical** filter to list only them.
+
+- They can be searched and selected as an existing client in the reservation wizard.
+- When the historical record had no email, the account uses a non-deliverable placeholder. The list shows **No email** and the **Invite** action is hidden until an admin adds a real email from the edit form.
+- Validation does not create or change the account; the account is linked when the historical record is saved, imported, or processed by the deployment backfill.
+
+See [Validating historical clients](/docs/historical-clients-validation) for the validation queue.
 
 ## Create a user
 

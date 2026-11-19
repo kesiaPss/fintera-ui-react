@@ -8,12 +8,22 @@ La página de Usuarios lista a las personas que pueden iniciar sesión. Muestra:
 
 - Una línea de resumen con el total de usuarios, administradores, vendedores y clientes.
 - **Búsqueda** por nombre, correo o identidad.
-- Chips de rol con conteos para **Todos**, **Administradores**, **Vendedores** y **Clientes**.
+- Chips de rol con conteos para **Todos**, **Administradores**, **Vendedores**, **Clientes** e **Históricos**.
 - Un botón **Mostrar todos / Mostrar solo activos**.
 - Una tabla con usuario, rol, cantidad de clientes, estado y acciones.
 - Paginación.
 
 Al seleccionar una fila se abre el panel del usuario con datos de contacto, rol, estado, cantidad de clientes, saldo y enlace al estado de cuenta para clientes, puntaje de crédito (cuando un administrador ve a un cliente), fechas de actividad y notas. El panel también ofrece **Editar**, **Desactivar/Activar**, **Invitar** (reenviar confirmación) y **Eliminar**.
+
+## Clientes históricos
+
+Los clientes históricos creados desde una venta migrada son cuentas de cliente reales (`role = Usuario`) marcadas con un chip **HISTÓRICO**. Usa el filtro **Históricos** para listar solo esas cuentas.
+
+- Se pueden buscar y seleccionar como cliente existente en el asistente de reserva.
+- Cuando el registro histórico no tenía correo, la cuenta usa un correo no entregable. La lista muestra **Sin correo** y la acción **Invitar** se oculta hasta que un administrador agregue un correo real desde el formulario de edición.
+- Validar no crea ni modifica la cuenta; la cuenta se vincula al guardar o importar el registro histórico, o al ejecutarse el backfill del despliegue.
+
+Ver [Validar clientes históricos](/docs/historical-clients-validation) para la cola de validación.
 
 ## Crear un usuario
 

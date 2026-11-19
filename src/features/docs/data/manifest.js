@@ -308,9 +308,19 @@ export const ARTICLES = [
     title: { en: "Audit log", es: "Auditoría" },
   },
   {
+    slug: "historical-clients-validation",
+    section: "administration",
+    order: 31,
+    audience: ["admin"],
+    title: {
+      en: "Validating historical clients",
+      es: "Validar clientes históricos",
+    },
+  },
+  {
     slug: "glossary",
     section: "glossary",
-    order: 31,
+    order: 32,
     audience: ["admin", "seller"],
     title: { en: "Glossary", es: "Glosario" },
   },

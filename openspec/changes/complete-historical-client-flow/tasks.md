@@ -36,6 +36,7 @@
 
 - [x] 6.1 Add ES/EN keys for the new labels, hints, states and toasts
 - [x] 6.2 Update `documentation/design/seller-flow-changes.md` and the seller docs where the flow is described
+- [x] 6.3 Add the admin-only in-app article "Validating historical clients" and the technical feature doc
 
 ## 7. Verification
 
