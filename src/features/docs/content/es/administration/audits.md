@@ -31,3 +31,4 @@ Usa el registro para responder quién aprobó un pago, cambió una comisión, ed
 - [Usuarios y roles](/docs/users-management)
 - [Lista, detalle y acciones del contrato](/docs/contract-detail-and-actions)
 - [Comisiones y pagos de comisión](/docs/commissions-and-payouts)
+- [Validar clientes históricos](/docs/historical-clients-validation)
