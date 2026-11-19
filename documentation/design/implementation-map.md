@@ -264,7 +264,7 @@ to stop clashing with `04 Contratos`.
 | 22 | `/commissions` *(new)* | A | `features/commissions/pages/index.jsx` *(new)* | `CommissionKpis`, `CommissionFilters`, `CommissionTable`, `CommissionRulesSheet` |
 | 22b | *(sheet on 22)* | A | `features/commissions/components/CommissionRulesSheet.jsx` *(new)* | default rate, payment rule, per-seller exceptions |
 | 05e | `/projects/:id?tab=medios` | AO | `features/projects/pages/detail/MediaTab.jsx` *(new)* | `PhotoGrid`, `PlansList`, `DocumentList`, `FileUpload` |
-| 05f | *(sheet on `/projects`)* | AO | `features/projects/components/ProjectImportSheet.jsx` *(new)* | dropzone, import toggles, column mapping |
+| 05f | *(sheet on `/projects`)* | AO | `features/projects/components/CsvImportModal.jsx` | dropzone, template, import toggles, column mapping |
 | 09 | `/settings/general` | A | `features/settings/pages/admin/index.jsx` | `SettingsNav`, `GeneralSettingsForm`, `SaveBar` |
 | 09b | `/settings/branding` | A | `features/branding/pages/general.jsx` | `LogoUploadCard`, `BrandPreview` |
 | 09c | `/settings/user/:id/security` | AO | `features/settings/pages/security/index.jsx` | `ChangePasswordForm`, `SessionsList` |
@@ -466,10 +466,15 @@ to stop clashing with `04 Contratos`.
 
 ### 05f — CSV import
 
-- `ProjectImportSheet`: dropzone + template download, two toggles (update
-  existing, skip duplicates), a column-mapping preview, and the import count in
+- `CsvImportModal` (rendered as a side sheet): dropzone + locally generated
+  template download, exclusive duplicate options (update existing / skip
+  duplicates), a column-mapping preview, row validation and the import count in
   the CTA. This is where the import options that used to clutter the projects
   page live.
+- The template uses Spanish headers by default and English headers in the `en`
+  locale. Comma/semicolon files and Windows-1252 text are normalized to UTF-8
+  comma CSV before upload. See `documentation/features/project-import.md`.
+
 
 ### 14b / 14c — Signup and reset
 

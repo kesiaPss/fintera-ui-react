@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeCsv, normalizeHeader, parseCsvRows } from "../csvImport";
+import {
+  TEMPLATE_HEADERS,
+  analyzeCsv,
+  buildProjectTemplate,
+  detectCsvDelimiter,
+  isCsvFile,
+  normalizeCsvFile,
+  normalizeHeader,
+  parseCsvRows,
+  readCsvText,
+} from "../csvImport";
 
 describe("csvImport", () => {
   it("normalizes headers with BOM, accents, spaces and dashes", () => {
@@ -20,7 +30,27 @@ describe("csvImport", () => {
     ]);
   });
 
-  it("maps canonical headers and aliases and counts non-empty rows", () => {
+  it("parses semicolon-delimited files", () => {
+    expect(
+      parseCsvRows('nombre;direccion\n"Altos, Norte";Calle 1\n', ";")
+    ).toEqual([
+      ["nombre", "direccion"],
+      ["Altos, Norte", "Calle 1"],
+    ]);
+  });
+
+  it("detects the delimiter from the mapped headers", () => {
+    expect(
+      detectCsvDelimiter("nombre;direccion;precio_m2\nAltos;Calle 1;1500\n")
+        .delimiter
+    ).toBe(";");
+    expect(
+      detectCsvDelimiter("nombre,direccion,precio_m2\nAltos,Calle 1,1500\n")
+        .delimiter
+    ).toBe(",");
+  });
+
+  it("maps canonical headers and aliases and counts mapped rows", () => {
     const analysis = analyzeCsv(
       "\uFEFFnombre,codigo,direccion,precio_m2,foo\n" +
         "Altos,ALT-1,Calle 1,1500,x\n" +
@@ -29,6 +59,7 @@ describe("csvImport", () => {
     );
 
     expect(analysis.rowCount).toBe(2);
+    expect(analysis.validRowCount).toBe(2);
     expect(analysis.missingRequired).toEqual([]);
     expect(analysis.mapping.map(({ field }) => field?.key)).toEqual([
       "name",
@@ -38,6 +69,12 @@ describe("csvImport", () => {
       undefined,
     ]);
     expect(analysis.mapping[0].field.required).toBe(true);
+  });
+
+  it("ignores rows whose only values are in unmapped columns", () => {
+    const analysis = analyzeCsv("nombre,foo\n,bar\nAltos,x\n");
+
+    expect(analysis.rowCount).toBe(1);
   });
 
   it("reports missing required columns", () => {
@@ -51,5 +88,93 @@ describe("csvImport", () => {
 
   it("rejects an empty CSV", () => {
     expect(() => analyzeCsv("\uFEFF\n")).toThrow("empty-csv");
+  });
+
+  it("builds a Spanish template that the preview accepts", () => {
+    const template = buildProjectTemplate("es");
+    const rows = parseCsvRows(template);
+    const analysis = analyzeCsv(template);
+
+    expect(template.startsWith("\uFEFF")).toBe(true);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual(TEMPLATE_HEADERS.es);
+    expect(template).toContain('"Calle 50, Ciudad de Panamá"');
+    expect(analysis.missingRequired).toEqual([]);
+    expect(analysis.rowCount).toBe(1);
+    expect(analysis.validRowCount).toBe(1);
+    expect(analysis.rowIssues).toEqual([]);
+  });
+
+  it("builds an English template that the preview accepts", () => {
+    const template = buildProjectTemplate("en");
+    const rows = parseCsvRows(template);
+    const analysis = analyzeCsv(template);
+
+    expect(rows[0]).toEqual(TEMPLATE_HEADERS.en);
+    expect(analysis.missingRequired).toEqual([]);
+    expect(analysis.rowCount).toBe(1);
+    expect(analysis.validRowCount).toBe(1);
+  });
+
+  it("validates required values and formats per row", () => {
+    const analysis = analyzeCsv(
+      "nombre,direccion,precio_m2,lotes,fecha_entrega,unidad,tasa_interes\n" +
+        "Altos,Calle 1,abc,1.5,2027-02-30,metros,-1\n" +
+        "Bosques,Calle 2,,\n"
+    );
+
+    expect(analysis.rowCount).toBe(2);
+    expect(analysis.validRowCount).toBe(0);
+    expect(analysis.rowIssues).toHaveLength(2);
+    expect(analysis.rowIssues[0].row).toBe(2);
+    expect(analysis.rowIssues[0].issues.map(({ code }) => code)).toEqual([
+      "number",
+      "integer",
+      "date",
+      "unit",
+      "negative",
+    ]);
+    expect(analysis.rowIssues[1].issues.map(({ code }) => code)).toEqual([
+      "required",
+    ]);
+  });
+
+  it("decodes Windows-1252 files", async () => {
+    const source = "nombre,ciudad\nAltos,Panam\u00e1\n";
+    const bytes = Uint8Array.from(source, (char) => char.charCodeAt(0) & 0xff);
+    const file = new File([bytes], "legacy.csv", { type: "text/csv" });
+
+    const { text, encoding } = await readCsvText(file);
+
+    expect(encoding).toBe("windows-1252");
+    expect(text).toContain("Panamá");
+  });
+
+  it("normalizes delimited files for upload", async () => {
+    const file = new File(
+      ["nombre;direccion;precio_m2\nAltos, Norte;Calle 1;1500\n"],
+      "projects.csv"
+    );
+
+    const normalized = normalizeCsvFile(
+      file,
+      await file.text(),
+      ";"
+    );
+    const content = await normalized.text();
+
+    expect(normalized.name).toBe("projects.csv");
+    expect(content).toContain("nombre,direccion,precio_m2");
+    expect(content).toContain('"Altos, Norte",Calle 1,1500');
+  });
+
+  it("checks the file extension and MIME type", () => {
+    expect(isCsvFile(new File(["a"], "projects.csv"))).toBe(true);
+    expect(
+      isCsvFile(new File(["a"], "projects", { type: "text/csv" }))
+    ).toBe(true);
+    expect(isCsvFile(new File(["a"], "notes.txt", { type: "text/plain" }))).toBe(
+      false
+    );
   });
 });

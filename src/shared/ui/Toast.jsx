@@ -16,7 +16,9 @@ function Toast({ visible, message, type = "success", duration = 3000, onClose })
       ? "bg-green-600 text-white"
       : type === "error"
         ? "bg-red-600 text-white"
-        : "bg-gray-800 text-white";
+        : type === "warning"
+          ? "bg-warning text-white"
+          : "bg-gray-800 text-white";
 
   return (
     <div role="status" aria-live="polite" className={`motion-fade-up ${base} ${style}`}>
@@ -28,7 +30,7 @@ function Toast({ visible, message, type = "success", duration = 3000, onClose })
 Toast.propTypes = {
   visible: PropTypes.bool,
   message: PropTypes.string,
-  type: PropTypes.oneOf(["success", "error", "info"]),
+  type: PropTypes.oneOf(["success", "error", "warning", "info"]),
   duration: PropTypes.number,
   onClose: PropTypes.func,
 };

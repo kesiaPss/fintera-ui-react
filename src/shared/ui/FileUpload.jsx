@@ -1,5 +1,6 @@
 import { useId } from "react";
 import PropTypes from "prop-types";
+import { useLocale } from "@/contexts/LocaleContext";
 
 function FileUpload({
   label,
@@ -8,10 +9,13 @@ function FileUpload({
   files = [],
   onChange,
   hint,
+  disabled = false,
 }) {
   const inputId = useId();
+  const { t } = useLocale();
 
   const handleFiles = (fileList) => {
+    if (disabled) return;
     onChange?.([...fileList]);
   };
 
@@ -27,15 +31,20 @@ function FileUpload({
       )}
       <label
         htmlFor={inputId}
+        aria-disabled={disabled || undefined}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           handleFiles(event.dataTransfer.files);
         }}
-        className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed border-line-strong bg-surface-2 px-4 py-6 text-center transition-colors hover:border-brand/60"
+        className={`flex flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed border-line-strong bg-surface-2 px-4 py-6 text-center transition-colors ${
+          disabled
+            ? "cursor-not-allowed opacity-60"
+            : "cursor-pointer hover:border-brand/60"
+        }`}
       >
         <span className="text-body font-semibold text-ink-2">
-          Arrastra archivos o haz clic
+          {t("common.dropzone")}
         </span>
         {hint && <span className="text-micro text-ink-3">{hint}</span>}
         <input
@@ -43,6 +52,7 @@ function FileUpload({
           type="file"
           accept={accept}
           multiple={multiple}
+          disabled={disabled}
           className="sr-only"
           onChange={(event) => handleFiles(event.target.files)}
         />
@@ -65,6 +75,7 @@ FileUpload.propTypes = {
   files: PropTypes.array,
   onChange: PropTypes.func,
   hint: PropTypes.node,
+  disabled: PropTypes.bool,
 };
 
 export default FileUpload;

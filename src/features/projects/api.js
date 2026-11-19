@@ -12,8 +12,6 @@ export const projectsApi = {
     publish: (id) => apiClient.post(`/api/v1/projects/${id}/publish`, {}),
     unpublish: (id) => apiClient.post(`/api/v1/projects/${id}/unpublish`, {}),
     import: (formData) => apiClient.post("/api/v1/projects/import", formData),
-    importTemplate: () =>
-        apiClient.get("/api/v1/projects/import/template", { responseType: "blob" }),
 
     createLot: (projectId, data) => apiClient.post(`/api/v1/projects/${projectId}/lots`, data),
     listLots: (projectId, params) => {
