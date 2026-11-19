@@ -24,7 +24,7 @@ Every historical client is linked to a real customer account (`role = user`). Th
 - The client can be found and selected in the reservation wizard as an existing client.
 - If the historical record had no email, the account uses a non-deliverable placeholder. The UI shows **No email** and hides **Invite / Resend confirmation** until an admin adds a real email from the user edit form.
 
-The account is created when the historical record is saved or imported. Existing records are linked by the deployment backfill. Validation does not create the account and does not change it.
+The account is created when the historical record is saved or imported. Existing records are linked by the startup backfill. Validation does not create the account and does not change it.
 
 ## Filters
 

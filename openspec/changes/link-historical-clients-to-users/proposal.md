@@ -20,7 +20,7 @@ person would create a duplicate customer account.
   active users).
 - Merge the historical row with the contract row in the seller clients list when
   they share `client_user_id`.
-- Backfill existing records during deployment with an idempotent command.
+- Backfill existing records asynchronously at API startup with an idempotent worker job.
 
 ## Capabilities
 
@@ -37,5 +37,5 @@ person would create a duplicate customer account.
 - UI: `src/features/users/**`, `src/features/projects/pages/reserve/**`,
   `src/features/seller/pages/index.jsx`, `src/locales/{en,es}.json`, docs.
 - API: FinteraAPI `link-historical-clients-to-users` change (migration,
-  resolver, backfill command, Docker CMD, Swagger).
-- Data: existing `historical_sales` rows are linked by the deployment backfill.
+  resolver, startup backfill worker, Swagger).
+- Data: existing `historical_sales` rows are linked by the startup backfill.

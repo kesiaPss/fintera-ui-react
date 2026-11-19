@@ -2,7 +2,7 @@
 
 - [x] 1.1 Consume `historical_client` on users and `client_user_id` on historical sales
 - [x] 1.2 Use `GET /users?historical=1` and the `historical` stats count
-- [x] 1.3 Keep the deployment backfill documented
+- [x] 1.3 Keep the startup backfill documented
 
 ## 2. Admin Users
 
@@ -26,7 +26,7 @@
 
 - [x] 5.1 Update the admin historical and users guides
 - [x] 5.2 Update the reservations guide and the technical feature doc
-- [x] 5.3 Document the deployment backfill
+- [x] 5.3 Document the startup backfill
 
 ## 6. Verification
 

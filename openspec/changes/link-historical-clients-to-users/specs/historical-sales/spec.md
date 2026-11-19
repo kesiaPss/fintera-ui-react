@@ -28,11 +28,12 @@ by identity before creating a new one. The account SHALL be marked with
 
 ### Requirement: Historical client backfill
 
-The deployment SHALL link historical sales created before this change. The
-backfill SHALL be idempotent and SHALL skip already linked records.
+The API SHALL link historical sales created before this change in the
+background at startup. The backfill SHALL be idempotent and SHALL skip already
+linked records.
 
-#### Scenario: Deployment backfill
+#### Scenario: API startup backfill
 
-- **WHEN** the API container starts after the migration
+- **WHEN** the API starts after the migration
 - **THEN** unlinked historical sales are linked to customer accounts
 - **AND** a second run makes no changes

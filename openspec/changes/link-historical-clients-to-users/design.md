@@ -29,9 +29,9 @@ which can show the same person twice once a contract exists.
 
 - `cmd/backfill-historical-clients` processes `client_user_id IS NULL` in id
   order and is idempotent.
-- The Docker start command runs the backfill after migrations and seeds:
-  `make migrate-up && make seed && ./historical-clients-backfill && ./main`.
-- Per-record conflicts are logged and skipped; the next deployment retries them.
+- The API enqueues the backfill asynchronously at startup through the background
+  worker; it does not delay the HTTP server.
+- Per-record conflicts are logged and skipped; the next API start retries them.
 
 ### UI
 

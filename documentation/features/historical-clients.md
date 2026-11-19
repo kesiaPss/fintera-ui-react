@@ -32,8 +32,9 @@ reservation wizard.
   hides the invite action until an admin adds a real address.
 - Edits to a pending sale keep the linked account and refresh its name, phone
   and real email when applicable.
-- Existing records are linked by `make backfill-historical-clients`; the Docker
-  deployment runs `./historical-clients-backfill` after migrations and seeds.
+- Existing records are linked by an idempotent backfill that the API enqueues
+  asynchronously at startup. `make backfill-historical-clients` remains
+  available for a manual run.
 
 ## Effective commission rate
 

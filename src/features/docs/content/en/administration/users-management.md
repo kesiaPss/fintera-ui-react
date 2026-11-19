@@ -21,7 +21,7 @@ Historical clients created from a migrated sale are real customer accounts (`rol
 
 - They can be searched and selected as an existing client in the reservation wizard.
 - When the historical record had no email, the account uses a non-deliverable placeholder. The list shows **No email** and the **Invite** action is hidden until an admin adds a real email from the edit form.
-- Validation does not create or change the account; the account is linked when the historical record is saved, imported, or processed by the deployment backfill.
+- Validation does not create or change the account; the account is linked when the historical record is saved, imported, or processed by the startup backfill.
 
 See [Validating historical clients](/docs/historical-clients-validation) for the validation queue.
 

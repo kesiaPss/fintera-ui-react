@@ -21,7 +21,7 @@ Los clientes históricos creados desde una venta migrada son cuentas de cliente 
 
 - Se pueden buscar y seleccionar como cliente existente en el asistente de reserva.
 - Cuando el registro histórico no tenía correo, la cuenta usa un correo no entregable. La lista muestra **Sin correo** y la acción **Invitar** se oculta hasta que un administrador agregue un correo real desde el formulario de edición.
-- Validar no crea ni modifica la cuenta; la cuenta se vincula al guardar o importar el registro histórico, o al ejecutarse el backfill del despliegue.
+- Validar no crea ni modifica la cuenta; la cuenta se vincula al guardar o importar el registro histórico, o al ejecutarse el backfill de inicio.
 
 Ver [Validar clientes históricos](/docs/historical-clients-validation) para la cola de validación.
 

@@ -24,7 +24,7 @@ Cada cliente histórico queda vinculado a una cuenta de cliente real (`role = us
 - El cliente se puede buscar y seleccionar en el asistente de reserva como cliente existente.
 - Si el registro histórico no tenía correo, la cuenta usa un correo no entregable. La interfaz muestra **Sin correo** y oculta **Invitar / Reenviar confirmación** hasta que un administrador agregue un correo real desde la edición del usuario.
 
-La cuenta se crea al guardar o importar el registro histórico. Los registros existentes se vinculan con el backfill del despliegue. Validar no crea la cuenta ni la modifica.
+La cuenta se crea al guardar o importar el registro histórico. Los registros existentes se vinculan con el backfill de inicio. Validar no crea la cuenta ni la modifica.
 
 ## Filtros
 
