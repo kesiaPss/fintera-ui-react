@@ -40,6 +40,7 @@ function ReserveWizard({
 }) {
   const { t } = useLocale();
   const { user: currentUser } = useContext(AuthContext);
+  const isSeller = currentUser?.role === "seller";
 
   const [step, setStep] = useState(0);
 
@@ -102,6 +103,13 @@ function ReserveWizard({
   }, [financingType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (isSeller) {
+      setSellers([]);
+      setSellersLoading(false);
+      setSellersError(null);
+      return undefined;
+    }
+
     let cancelled = false;
 
     const loadSellers = async () => {
@@ -125,7 +133,7 @@ function ReserveWizard({
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, isSeller]);
 
   const handleSellerModeChange = (mode, seller) => {
     setSellerMode(mode);
@@ -365,6 +373,10 @@ function ReserveWizard({
       return;
     }
 
+    const manualSeller =
+      sellerMode === "manual" && selectedSeller ? selectedSeller : null;
+    const assignedSellerId = isSeller ? currentUser?.id : manualSeller?.id;
+
     await onSubmit({
       paymentTerm,
       financingType,
@@ -374,23 +386,26 @@ function ReserveWizard({
       note,
       applicantUserId: selectedUser?.id || "",
       user: { full_name: fullName, phone, identity, rtn, email },
-      assignmentOrigin:
-        sellerMode === "manual" && selectedSeller ? "manual" : "automatic",
-      sellerId:
-        sellerMode === "manual" && selectedSeller ? selectedSeller.id : "",
+      assignmentOrigin: isSeller || manualSeller ? "manual" : "automatic",
+      sellerId: assignedSellerId || "",
       documents,
     });
   };
 
   const clientLabel = selectedUser?.full_name || fullName || "—";
-  const assignedSeller =
-    sellerMode === "manual" && selectedSeller ? selectedSeller : null;
+  const assignedSeller = isSeller
+    ? currentUser
+    : sellerMode === "manual" && selectedSeller
+      ? selectedSeller
+      : null;
   const assignedSellerLabel = assignedSeller
     ? sellerName(assignedSeller)
     : t("sellerAssignments.automaticSeller");
-  const assignedSellerHint = assignedSeller
-    ? t("sellerAssignments.assignedSellerHint")
-    : t("sellerAssignments.automaticSellerHint");
+  const assignedSellerHint = isSeller
+    ? t("sellerAssignments.selfSellerHint")
+    : assignedSeller
+      ? t("sellerAssignments.assignedSellerHint")
+      : t("sellerAssignments.automaticSellerHint");
   const assignedSellerInitials = assignedSeller
     ? sellerName(assignedSeller)
         .split(/\s+/)
@@ -684,16 +699,18 @@ function ReserveWizard({
                   </div>
                 )}
 
-                <div className="border-t border-line pt-5">
-                  <SellerQuestion
-                    sellers={sellers}
-                    loading={sellersLoading}
-                    error={sellersError}
-                    mode={sellerMode}
-                    selectedSellerId={selectedSeller?.id ?? null}
-                    onModeChange={handleSellerModeChange}
-                  />
-                </div>
+                {!isSeller && (
+                  <div className="border-t border-line pt-5">
+                    <SellerQuestion
+                      sellers={sellers}
+                      loading={sellersLoading}
+                      error={sellersError}
+                      mode={sellerMode}
+                      selectedSellerId={selectedSeller?.id ?? null}
+                      onModeChange={handleSellerModeChange}
+                    />
+                  </div>
+                )}
               </div>
             </Card>
           )}

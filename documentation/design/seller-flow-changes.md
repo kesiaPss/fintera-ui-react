@@ -70,15 +70,19 @@ Complementa `./implementation-map.md`; no reemplaza el spec funcional.
 3. Omitió → `assignment_origin = automatic`, `assignment_status = pending`.
    Selección automática: candidatos con `score_level != low`, priorizando verde
    y menor carga de asignaciones pendientes (round-robin ponderado por score).
-4. Toda asignación `pending` genera notificación al vendedor y fija
+4. **Reserva creada por un vendedor desde el back office:** no se muestra la
+   pregunta; la reserva se asigna a ese vendedor con
+   `assignment_origin = manual` y `assignment_status = accepted` (sin ventana
+   de aceptación). El vendedor no puede asignarla a otro vendedor.
+5. Toda asignación `pending` genera notificación al vendedor y fija
    `accept_deadline_at = now + assignment_window` (configurable; default 2 h).
-5. **Aceptar** → `accepted`; la reserva entra a su cartera, habilita seguimiento
+6. **Aceptar** → `accepted`; la reserva entra a su cartera, habilita seguimiento
    y la comisión queda comprometida.
-6. **Rechazar** o **no responder** al vencer → `expired`; el vendedor pierde la
+7. **Rechazar** o **no responder** al vencer → `expired`; el vendedor pierde la
    comisión de esa venta, el evento cuenta negativo en su score y la reserva
    continúa su curso (reasignar al siguiente candidato o quedar sin vendedor,
    ver decisiones abiertas).
-7. La reserva nunca se bloquea ni se invalida por una asignación expirada.
+8. La reserva nunca se bloquea ni se invalida por una asignación expirada.
 
 ### 3.3 Score de aceptación (0–100%)
 - Cálculo: `accepted / (accepted + expired)` en ventana de 90 días.

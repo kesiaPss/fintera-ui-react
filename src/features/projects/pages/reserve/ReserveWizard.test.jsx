@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import en from "../../../../locales/en.json";
+import AuthContext from "@/contexts/AuthContext";
 import ReserveWizard from "./ReserveWizard";
 import { sellerApi } from "../../../seller/api";
 import { usersApi } from "../../../users/api";
@@ -150,6 +151,44 @@ describe("ReserveWizard seller question", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /No one assisted me/ }));
     expect(within(rail).getByText("Automatic assignment")).toBeInTheDocument();
+  });
+
+  it("assigns the reservation to the seller without asking for one", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const sellerUser = {
+      id: 7,
+      role: "seller",
+      full_name: "Ana Vendedora",
+      email: "ana@example.com",
+    };
+
+    render(
+      <AuthContext.Provider value={{ user: sellerUser, token: "token" }}>
+        <ReserveWizard lot={lot} currency="HNL" onSubmit={onSubmit} />
+      </AuthContext.Provider>
+    );
+
+    expect(
+      screen.queryByText("Did a seller assist you?")
+    ).not.toBeInTheDocument();
+    expect(sellerApi.listSellers).not.toHaveBeenCalled();
+
+    const rail = screen.getByText("ASSIGNED SELLER").closest("section");
+    expect(within(rail).getByText("Ana Vendedora")).toBeInTheDocument();
+    expect(
+      within(rail).getByText("This reservation will be assigned to you")
+    ).toBeInTheDocument();
+
+    fillClient();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await completeAndSubmit();
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      assignmentOrigin: "manual",
+      sellerId: 7,
+    });
   });
 
   it("marks a historical client in the reservation search and selection", async () => {

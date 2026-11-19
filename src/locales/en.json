@@ -2988,6 +2988,7 @@
     "noOneMeta": "Assign automatically",
     "assignedSeller": "ASSIGNED SELLER",
     "assignedSellerHint": "They will contact you to follow up",
+    "selfSellerHint": "This reservation will be assigned to you",
     "automaticSeller": "Automatic assignment",
     "automaticSellerHint": "We will assign an available seller",
     "noChargeNote": "0% rate · No additional charges",
