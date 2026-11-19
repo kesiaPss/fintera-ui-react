@@ -31,3 +31,4 @@ Use the log to answer who approved a payment, changed a commission, edited a pro
 - [Users and roles](/docs/users-management)
 - [Contract list, detail, and actions](/docs/contract-detail-and-actions)
 - [Commissions and payouts](/docs/commissions-and-payouts)
+- [Validating historical clients](/docs/historical-clients-validation)
