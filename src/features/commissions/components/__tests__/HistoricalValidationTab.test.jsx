@@ -128,7 +128,7 @@ describe("HistoricalValidationTab", () => {
   });
 
   it("shows the no-evidence state for rows without evidence", async () => {
-    sellerApi.listHistoricalSales.mockImplementation(({ status, per_page }) => {
+    sellerApi.listHistoricalSales.mockImplementation(({ per_page }) => {
       if (per_page === 1) {
         return Promise.resolve({ pagination: { total: 1 } });
       }
