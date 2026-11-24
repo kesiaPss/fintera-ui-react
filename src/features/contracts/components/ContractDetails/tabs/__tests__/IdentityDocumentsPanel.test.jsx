@@ -1,13 +1,32 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 
+const { authState, MockAuthContext } = vi.hoisted(() => {
+  const state = { user: { role: "admin" } };
+  return {
+    authState: state,
+    MockAuthContext: {
+      _currentValue: state,
+      Provider: ({ children }) => children,
+      Consumer: ({ children }) => children,
+    },
+  };
+});
+
 const listIdentityDocuments = vi.fn();
 const fetchIdentityDocumentBlob = vi.fn();
+
+const uploadIdentityDocumentForUser = vi.fn();
+const uploadIdentityDocumentForContract = vi.fn();
 
 vi.mock("@/features/contracts/api", () => ({
   contractsApi: {
     listIdentityDocuments: (...args) => listIdentityDocuments(...args),
     fetchIdentityDocumentBlob: (...args) => fetchIdentityDocumentBlob(...args),
+    uploadIdentityDocumentForUser: (...args) =>
+      uploadIdentityDocumentForUser(...args),
+    uploadIdentityDocumentForContract: (...args) =>
+      uploadIdentityDocumentForContract(...args),
   },
 }));
 
@@ -34,17 +53,37 @@ vi.mock("@/contexts/LocaleContext", () => ({
         "contracts.identityDocuments.nothingOnFile": "Nada en archivo",
         "contracts.identityDocuments.loadError": "No se pudieron cargar los documentos",
         "contracts.identityDocuments.unnamedFile": "archivo sin nombre",
+        "contracts.identityDocuments.upload": "Subir",
+        "contracts.identityDocuments.replace": "Reemplazar",
+        "contracts.identityDocuments.uploaded": "Documento actualizado",
+        "contracts.identityDocuments.uploadError": "No se pudo subir el documento",
+        "contracts.identityDocuments.tooLarge": "El archivo {name} supera el límite de 10 MB",
       };
       return strings[key] || key;
     },
   }),
 }));
 
+import AuthContext from "@/contexts/AuthContext";
 import IdentityDocumentsPanel from "../IdentityDocumentsPanel";
+
+// Render under the same provider wiring the app uses, with a mutable user so
+// each test can pick the role.
+const renderPanel = (contract = { guid: "guid-9" }) =>
+  render(
+    <AuthContext.Provider value={authState}>
+      <IdentityDocumentsPanel contract={contract} />
+    </AuthContext.Provider>
+  );
 
 const mockToast = vi.fn();
 vi.mock("@/contexts/ToastContext", () => ({
   useToast: () => ({ showToast: mockToast }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  default: MockAuthContext,
+  AuthProvider: ({ children }) => children,
 }));
 
 const dniFile = {
@@ -78,13 +117,17 @@ const listing = {
   ],
 };
 
-const renderPanel = (contract = { guid: "guid-9" }) =>
-  render(<IdentityDocumentsPanel contract={contract} />);
+
 
 beforeEach(() => {
   listIdentityDocuments.mockReset();
   fetchIdentityDocumentBlob.mockReset();
+  uploadIdentityDocumentForUser.mockReset();
+  uploadIdentityDocumentForContract.mockReset();
+  uploadIdentityDocumentForUser.mockResolvedValue({});
+  uploadIdentityDocumentForContract.mockResolvedValue({});
   mockToast.mockReset();
+  authState.user.role = "admin";
   window.open = vi.fn();
 });
 
@@ -143,6 +186,124 @@ describe("IdentityDocumentsPanel", () => {
       )
     );
     await waitFor(() => expect(window.open).toHaveBeenCalledTimes(1));
+  });
+
+  const pickFile = (container, filename, kindHint) => {
+    // The empty slot and each replace button carry their own file input.
+    const inputs = [...container.querySelectorAll('input[type="file"]')];
+    const input =
+      inputs.find((el) =>
+        (el.closest("div")?.textContent || "").includes(kindHint)
+      ) || inputs[0];
+    const file = new File(["x"], filename, { type: "image/png" });
+    Object.defineProperty(input, "files", {
+      value: [file],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return file;
+  };
+
+  it("uploads to the person route when the caller is an admin", async () => {
+    listIdentityDocuments.mockResolvedValue({ identity_documents: listing });
+
+    const { container } = renderPanel();
+    await screen.findByText("dni.png");
+
+    // Only the empty RTN slot offers "Subir".
+    expect(screen.getAllByText("Subir")).toHaveLength(1);
+    const file = pickFile(container, "rtn.png", "RTN");
+
+    await waitFor(() =>
+      expect(uploadIdentityDocumentForUser).toHaveBeenCalledWith(
+        7,
+        "rtn",
+        file
+      )
+    );
+    expect(uploadIdentityDocumentForContract).not.toHaveBeenCalled();
+    // The listing is refreshed after the upload.
+    expect(listIdentityDocuments.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uploads through the contract route when the caller is a seller", async () => {
+    authState.user.role = "seller";
+    listIdentityDocuments.mockResolvedValue({ identity_documents: listing });
+
+    const { container } = renderPanel();
+    await screen.findByText("dni.png");
+
+    const file = pickFile(container, "rtn.png", "RTN");
+
+    await waitFor(() =>
+      expect(uploadIdentityDocumentForContract).toHaveBeenCalledWith(
+        "guid-9",
+        "rtn",
+        file
+      )
+    );
+    expect(uploadIdentityDocumentForUser).not.toHaveBeenCalled();
+  });
+
+  it("offers Reemplazar on a populated slot", async () => {
+    listIdentityDocuments.mockResolvedValue({ identity_documents: listing });
+
+    const { container } = renderPanel();
+    await screen.findByText("dni.png");
+
+    expect(screen.getByText("Reemplazar")).toBeTruthy();
+    const file = pickFile(container, "nuevo-dni.png", "DNI");
+
+    await waitFor(() =>
+      expect(uploadIdentityDocumentForUser).toHaveBeenCalledWith(7, "dni", file)
+    );
+  });
+
+  it("rejects a file over 10 MB without calling the API", async () => {
+    listIdentityDocuments.mockResolvedValue({ identity_documents: listing });
+
+    const { container } = renderPanel();
+    await screen.findByText("dni.png");
+
+    const big = new File(["x"], "huge.png", { type: "image/png" });
+    Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
+    const input = container.querySelector('input[type="file"]');
+    Object.defineProperty(input, "files", {
+      value: [big],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalled());
+    // The test's t() does not interpolate {name}; assert on the fixed part.
+    expect(
+      mockToast.mock.calls.some(
+        ([message, tone]) =>
+          tone === "error" && String(message).includes("10 MB")
+      )
+    ).toBe(true);
+    expect(uploadIdentityDocumentForUser).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the backend 422 message on upload", async () => {
+    listIdentityDocuments.mockResolvedValue({ identity_documents: listing });
+    uploadIdentityDocumentForUser.mockRejectedValue({
+      message: 'el archivo "bad.gif" no tiene un tipo permitido (image/gif)',
+      status: 422,
+    });
+
+    const { container } = renderPanel();
+    await screen.findByText("dni.png");
+
+    pickFile(container, "bad.gif", "RTN");
+
+    await waitFor(() =>
+      expect(
+        mockToast.mock.calls.some(
+          ([message]) => String(message).includes("bad.gif")
+        )
+      ).toBe(true)
+    );
   });
 
   it("hides itself when the caller has no scope (403)", async () => {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/apiClient", () => ({
-  apiClient: { get: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn() },
 }));
 
 import { apiClient } from "../../lib/apiClient";
@@ -10,6 +10,7 @@ import { contractsApi } from "./api";
 describe("contractsApi identity documents", () => {
   beforeEach(() => {
     apiClient.get.mockReset();
+    apiClient.post.mockReset();
     apiClient.get.mockResolvedValue({});
   });
 
@@ -19,6 +20,32 @@ describe("contractsApi identity documents", () => {
     expect(apiClient.get).toHaveBeenCalledWith(
       "/api/v1/contracts/guid-9/identity_documents"
     );
+  });
+
+  it("uploads an identity document for a person with its kind", async () => {
+    apiClient.post.mockResolvedValue({});
+    const file = new File(["x"], "dni.png", { type: "image/png" });
+
+    await contractsApi.uploadIdentityDocumentForUser(7, "dni", file);
+
+    const [url, body] = apiClient.post.mock.calls[0];
+    expect(url).toBe("/api/v1/users/7/identity_documents");
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get("kind")).toBe("dni");
+    expect(body.get("file")).toBe(file);
+  });
+
+  it("uploads an identity document through a contract in scope", async () => {
+    apiClient.post.mockResolvedValue({});
+    const file = new File(["x"], "rtn.png", { type: "image/png" });
+
+    await contractsApi.uploadIdentityDocumentForContract("guid-9", "rtn", file);
+
+    const [url, body] = apiClient.post.mock.calls[0];
+    expect(url).toBe("/api/v1/contracts/guid-9/identity_documents");
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get("kind")).toBe("rtn");
+    expect(body.get("file")).toBe(file);
   });
 
   it("fetches a content or preview URL as a blob", async () => {

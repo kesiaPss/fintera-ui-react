@@ -15,6 +15,20 @@ export const contractsApi = {
     // The listing returns relative content/preview URLs; apiClient prefixes the
     // API origin and returns the bytes as a blob.
     fetchIdentityDocumentBlob: (relativeUrl) => apiClient.get(relativeUrl, { responseType: 'blob' }),
+    // Store or replace one kind of the applicant's identity documents. Admins
+    // address the person directly; sellers go through a contract in scope.
+    uploadIdentityDocumentForUser: (userId, kind, file) => {
+        const formData = new FormData();
+        formData.append("kind", kind);
+        formData.append("file", file);
+        return apiClient.post(`/api/v1/users/${userId}/identity_documents`, formData);
+    },
+    uploadIdentityDocumentForContract: (guid, kind, file) => {
+        const formData = new FormData();
+        formData.append("kind", kind);
+        formData.append("file", file);
+        return apiClient.post(`/api/v1/contracts/${guid}/identity_documents`, formData);
+    },
 
     getDetails: (projectId, lotId, contractId) => apiClient.get(`/api/v1/projects/${projectId}/lots/${lotId}/contracts/${contractId}`),
 

@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
+import AuthContext from "@/contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDownload,
@@ -7,6 +8,7 @@ import {
   faIdCard,
   faPaperclip,
   faRotateRight,
+  faUpload,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -20,9 +22,14 @@ import { contractsApi } from "../../../api";
  * plus the contract attachments surfaced as read-only legacy entries. The API
  * enforces the admin/seller scope, so a 403 simply hides the panel.
  */
+const IDENTITY_ACCEPT =
+  "application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif";
+const MAX_IDENTITY_DOCUMENT_SIZE = 10 * 1024 * 1024;
+
 const IdentityDocumentsPanel = ({ contract }) => {
   const { t } = useLocale();
   const { showToast } = useToast();
+  const { user } = useContext(AuthContext);
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -72,6 +79,44 @@ const IdentityDocumentsPanel = ({ contract }) => {
     []
   );
 
+  const handleUpload = useCallback(
+    async (kind, file) => {
+      if (!file) return;
+      if (file.size > MAX_IDENTITY_DOCUMENT_SIZE) {
+        showToast(
+          t("contracts.identityDocuments.tooLarge", { name: file.name }),
+          "error"
+        );
+        return;
+      }
+      try {
+        showToast(t("common.processing"), "info");
+        // Admins write the person's slot directly; sellers go through the
+        // contract, where the API resolves the applicant and its scope.
+        if (user?.role === "admin" && listing?.user_id) {
+          await contractsApi.uploadIdentityDocumentForUser(
+            listing.user_id,
+            kind,
+            file
+          );
+        } else {
+          await contractsApi.uploadIdentityDocumentForContract(
+            contract.guid,
+            kind,
+            file
+          );
+        }
+        showToast(t("contracts.identityDocuments.uploaded"), "success");
+        await load();
+      } catch (error) {
+        const message =
+          error?.message || t("contracts.identityDocuments.uploadError");
+        showToast(message, "error");
+      }
+    },
+    [contract?.guid, listing?.user_id, load, showToast, t, user?.role]
+  );
+
   const handleView = useCallback(
     async (file) => {
       if (!file) return;
@@ -117,7 +162,7 @@ const IdentityDocumentsPanel = ({ contract }) => {
 
   if (hidden) return null;
 
-  const fileRow = (file, kindLabel, readOnly) => (
+  const fileRow = (file, kindLabel, readOnly, replaceKind) => (
     <div
       key={`${kindLabel}-${file.id}`}
       className="flex items-center justify-between gap-3 rounded-control border border-line bg-surface p-3"
@@ -161,24 +206,56 @@ const IdentityDocumentsPanel = ({ contract }) => {
           <FontAwesomeIcon icon={faDownload} className="mr-1.5" />
           {t("common.download")}
         </button>
+        {replaceKind && (
+          <label className="cursor-pointer rounded-control border border-line px-2.5 py-1.5 text-micro text-ink-2 hover:border-line-strong hover:bg-surface-2">
+            <FontAwesomeIcon icon={faUpload} className="mr-1.5" />
+            {t("contracts.identityDocuments.replace")}
+            <input
+              type="file"
+              accept={IDENTITY_ACCEPT}
+              className="sr-only"
+              onChange={(event) => {
+                const [file] = event.target.files || [];
+                handleUpload(replaceKind, file);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        )}
       </span>
     </div>
   );
 
-  const emptySlotRow = (kindLabel) => (
+  const emptySlotRow = (kind, kindLabel) => (
     <div
-      key={`empty-${kindLabel}`}
-      className="flex items-center gap-3 rounded-control border border-dashed border-line bg-surface-2 p-3"
+      key={`empty-${kind}`}
+      className="flex items-center justify-between gap-3 rounded-control border border-dashed border-line bg-surface-2 p-3"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface text-ink-3">
-        <FontAwesomeIcon icon={faIdCard} />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-body font-semibold text-ink">{kindLabel}</span>
-        <span className="block text-micro text-ink-3">
-          {t("contracts.identityDocuments.notUploaded")}
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface text-ink-3">
+          <FontAwesomeIcon icon={faIdCard} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-body font-semibold text-ink">{kindLabel}</span>
+          <span className="block text-micro text-ink-3">
+            {t("contracts.identityDocuments.notUploaded")}
+          </span>
         </span>
       </span>
+      <label className="shrink-0 cursor-pointer rounded-control border border-line px-2.5 py-1.5 text-micro text-ink-2 hover:border-line-strong hover:bg-surface-2">
+        <FontAwesomeIcon icon={faUpload} className="mr-1.5" />
+        {t("contracts.identityDocuments.upload")}
+        <input
+          type="file"
+          accept={IDENTITY_ACCEPT}
+          className="sr-only"
+          onChange={(event) => {
+            const [file] = event.target.files || [];
+            handleUpload(kind, file);
+            event.target.value = "";
+          }}
+        />
+      </label>
     </div>
   );
 
@@ -212,8 +289,8 @@ const IdentityDocumentsPanel = ({ contract }) => {
                 : "contracts.identityDocuments.rtn"
             );
             return slot.document
-              ? fileRow(slot.document, kindLabel, false)
-              : emptySlotRow(kindLabel);
+              ? fileRow(slot.document, kindLabel, false, slot.kind)
+              : emptySlotRow(slot.kind, kindLabel);
           })}
 
           {legacy.length > 0 && (
