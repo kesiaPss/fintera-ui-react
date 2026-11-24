@@ -7,6 +7,32 @@ vi.mock("../../lib/apiClient", () => ({
 import { apiClient } from "../../lib/apiClient";
 import { contractsApi } from "./api";
 
+describe("contractsApi identity documents", () => {
+  beforeEach(() => {
+    apiClient.get.mockReset();
+    apiClient.get.mockResolvedValue({});
+  });
+
+  it("lists the identity documents of a contract by GUID", async () => {
+    await contractsApi.listIdentityDocuments("guid-9");
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/api/v1/contracts/guid-9/identity_documents"
+    );
+  });
+
+  it("fetches a content or preview URL as a blob", async () => {
+    await contractsApi.fetchIdentityDocumentBlob(
+      "/api/v1/identity_documents/3/preview"
+    );
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/api/v1/identity_documents/3/preview",
+      { responseType: "blob" }
+    );
+  });
+});
+
 describe("contractsApi report downloads", () => {
   beforeEach(() => {
     apiClient.get.mockReset();

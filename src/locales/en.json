@@ -1498,6 +1498,18 @@
     "contactInformation": "Contact Information",
     "note": "Note",
     "documents": "Documents",
+    "identityDocuments": {
+      "title": "Customer Documents",
+      "subtitle": "The customer's identity documents and the files attached to the contract",
+      "dni": "DNI",
+      "rtn": "RTN",
+      "notUploaded": "No document uploaded",
+      "readOnly": "Read-only",
+      "attachments": "Files attached to the contract",
+      "nothingOnFile": "This customer has no documents on file and the contract has no attachments",
+      "loadError": "The documents could not be loaded",
+      "unnamedFile": "unnamed file"
+    },
     "accountStatement": "Account Statement",
     "manageContracts": "Manage your contracts and agreements",
     "systemGuid": "Contract ID",
